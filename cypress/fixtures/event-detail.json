@@ -1,0 +1,17 @@
+{
+  "eventId": "evt-1",
+  "eventName": "งานสัมมนา Tech 2026",
+  "shortDescription": "สัมมนาเทคโนโลยีแห่งปี",
+  "description": "รายละเอียดเต็มของงานสัมมนา",
+  "eventDate": "2026-11-20",
+  "venue": "อาคารนวัตกรรม เชียงใหม่",
+  "category": "Technology",
+  "imageUrl": "",
+  "eventsStatus": "OPEN",
+  "maxCapacity": 150,
+  "organizer": { "firstName": "ผู้จัด", "lastName": "ทดสอบ" },
+  "sessions": [
+    { "sessionId": "ses-2", "startTime": "13:00", "endTime": "16:00", "capacity": 50, "booked": 50 },
+    { "sessionId": "ses-1", "startTime": "09:00", "endTime": "12:00", "capacity": 100, "booked": 20 }
+  ]
+}

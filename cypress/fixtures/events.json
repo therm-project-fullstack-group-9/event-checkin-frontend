@@ -1,0 +1,24 @@
+[
+  {
+    "eventId": "evt-1",
+    "eventName": "งานสัมมนา Tech 2026",
+    "shortDescription": "สัมมนาเทคโนโลยีแห่งปี",
+    "eventDate": "2026-11-20",
+    "venue": "อาคารนวัตกรรม เชียงใหม่",
+    "category": "Technology",
+    "imageUrl": "",
+    "eventsStatus": "OPEN",
+    "maxCapacity": 150
+  },
+  {
+    "eventId": "evt-2",
+    "eventName": "Workshop ศิลปะ",
+    "shortDescription": "เวิร์กชอปวาดภาพ",
+    "eventDate": "2026-12-05",
+    "venue": "หอศิลป์กรุงเทพ",
+    "category": "Art & Culture",
+    "imageUrl": "",
+    "eventsStatus": "OPEN",
+    "maxCapacity": 40
+  }
+]

@@ -1,0 +1,7 @@
+[
+  { "id": "b1", "role": "Attendee", "bookingStatus": "CONFIRMED", "ticketRef": "TK-AAA111", "title": "งานสัมมนา Tech 2026", "date": "2026-11-20", "sessionTime": "09:00-12:00" },
+  { "id": "b2", "role": "Attendee", "bookingStatus": "CHECKED_IN", "ticketRef": "TK-BBB222", "title": "Workshop ศิลปะ", "date": "2026-12-05", "sessionTime": "13:00-16:00" },
+  { "id": "b3", "role": "Organizer", "bookingStatus": "CONFIRMED", "title": "งานของฉัน 1" },
+  { "id": "b4", "role": "Organizer", "bookingStatus": "CONFIRMED", "title": "งานของฉัน 2" },
+  { "id": "b5", "role": "Organizer", "bookingStatus": "CONFIRMED", "title": "งานของฉัน 3" }
+]

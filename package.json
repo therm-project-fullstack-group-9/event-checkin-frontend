@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
@@ -35,6 +37,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "babel-plugin-react-compiler": "^1.0.0",
+    "cypress": "^16.1.1",
     "oxlint": "^1.75.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"
