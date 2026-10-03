@@ -1,0 +1,38 @@
+{
+  "event": {
+    "eventId": "evt-1",
+    "eventName": "งานสัมมนา Tech 2026",
+    "shortDescription": "สัมมนาเทคโนโลยีแห่งปี",
+    "description": "รายละเอียดเต็ม",
+    "eventDate": "2026-11-20",
+    "venue": "อาคารนวัตกรรม เชียงใหม่",
+    "category": "Technology",
+    "imageUrl": "",
+    "eventsStatus": "OPEN",
+    "maxCapacity": 150,
+    "sessions": [
+      { "sessionId": "ses-1", "startTime": "09:00", "endTime": "12:00", "capacity": 100, "booked": 20 },
+      { "sessionId": "ses-2", "startTime": "13:00", "endTime": "16:00", "capacity": 50, "booked": 50 }
+    ]
+  },
+  "bookings": [
+    {
+      "bookingId": "b1", "ticketRef": "TK-AAA111", "bookingStatus": "CONFIRMED",
+      "checkInTime": null, "healthDeclaration": "แพ้อาหารทะเล",
+      "user": { "firstName": "สมชาย", "lastName": "ใจดี", "emailAddress": "somchai@example.com", "phoneNumber": "0811111111" },
+      "session": { "startTime": "09:00", "endTime": "12:00" }
+    },
+    {
+      "bookingId": "b2", "ticketRef": "TK-BBB222", "bookingStatus": "CHECKED_IN",
+      "checkInTime": "2026-11-20T03:00:00.000Z", "healthDeclaration": "ปกติ",
+      "user": { "firstName": "สมหญิง", "lastName": "รักเรียน", "emailAddress": "somying@example.com", "phoneNumber": "0822222222" },
+      "session": { "startTime": "09:00", "endTime": "12:00" }
+    },
+    {
+      "bookingId": "b3", "ticketRef": "TK-CCC333", "bookingStatus": "CONFIRMED",
+      "checkInTime": null,
+      "user": { "firstName": "วิชัย", "lastName": "มั่นคง", "emailAddress": "wichai@example.com", "phoneNumber": "0833333333" },
+      "session": { "startTime": "13:00", "endTime": "16:00" }
+    }
+  ]
+}

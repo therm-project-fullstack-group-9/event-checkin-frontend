@@ -1,0 +1,16 @@
+{
+  "bookingId": "b1",
+  "ticketRef": "TK-AAA111",
+  "bookingStatus": "CONFIRMED",
+  "checkInTime": null,
+  "healthDeclaration": "ปกติ",
+  "user": { "firstName": "สมชาย", "lastName": "ใจดี", "emailAddress": "somchai@example.com" },
+  "event": {
+    "eventId": "evt-1",
+    "eventName": "งานสัมมนา Tech 2026",
+    "eventDate": "2026-11-20",
+    "venue": "อาคารนวัตกรรม เชียงใหม่",
+    "category": "Technology"
+  },
+  "session": { "startTime": "09:00", "endTime": "12:00" }
+}
