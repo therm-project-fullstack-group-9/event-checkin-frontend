@@ -1,5 +1,5 @@
 import { BrowserRouter } from 'react-router-dom';
-import Navbar from './components/Sidebar'; // ตัวนี้คือ Sidebar ของเรา
+import Navbar from './components/Navbar'; // ตัวนี้คือ Sidebar ของเรา
 import RoutesApp from './routes';
 
 function App() {
