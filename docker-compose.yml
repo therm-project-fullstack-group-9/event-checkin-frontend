@@ -1,0 +1,13 @@
+name: tp
+
+services:
+  frontend:
+    container_name: events_checkin_frontend
+    image: event-checkin-frontend
+    restart: always
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
