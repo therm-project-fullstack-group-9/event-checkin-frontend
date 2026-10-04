@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../lib/api';
-import { formatThaiDate } from '../lib/formatDate';
+import { api } from '../libs/api';
+import { formatThaiDate } from '../libs/formatDate';
 
 export interface EventItem {
   eventId: string;

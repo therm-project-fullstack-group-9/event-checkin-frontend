@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { api } from '../lib/api';
+import { api } from '../libs/api';
 
 export default function MyAccount() {
   const [loading, setLoading] = useState(true);

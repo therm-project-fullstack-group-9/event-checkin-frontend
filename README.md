@@ -10,7 +10,7 @@
   - create .env
   ### 4. Run web application 
   - pnpm run dev (development Mode)
-  - docker compose up -d --build (docker)
+  - docker compose up -d --build (build and run on docker)
 
 ## Usage
   - docker compose stop

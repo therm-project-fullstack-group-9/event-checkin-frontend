@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api } from '../libs/api';
 import ExportButtons from '../components/ExportButtons';
-import { formatThaiDate } from '../lib/formatDate';
+import { formatThaiDate } from '../libs/formatDate';
 
 interface SessionItem {
   sessionId: string;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api } from '../libs/api';
 
 export default function EditEvent() {
   const { eventId } = useParams<{ eventId: string }>();

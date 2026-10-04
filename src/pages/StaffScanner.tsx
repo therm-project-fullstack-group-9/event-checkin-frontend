@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
-import { api } from '../lib/api';
+import { api } from '../libs/api';
 
 export default function StaffScanner() {
   const [ticketInput, setTicketInput] = useState('');

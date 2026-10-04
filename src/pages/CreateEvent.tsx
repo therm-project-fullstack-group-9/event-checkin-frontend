@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api } from '../libs/api';
 
 interface SessionInput {
   startTime: string;

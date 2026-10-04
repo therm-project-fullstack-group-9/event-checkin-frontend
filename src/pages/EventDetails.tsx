@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { api } from '../lib/api';
+import { api } from '../libs/api';
 
 interface SessionItem {
   sessionId: string;

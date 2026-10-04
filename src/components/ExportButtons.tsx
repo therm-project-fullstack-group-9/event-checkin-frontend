@@ -1,4 +1,4 @@
-import { formatThaiDate } from '../lib/formatDate';
+import { formatThaiDate } from '../libs/formatDate';
 
 interface AttendeeBooking {
   bookingId: string;
