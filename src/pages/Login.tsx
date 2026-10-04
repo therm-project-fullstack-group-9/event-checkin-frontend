@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, type UserProfile } from '../store/useAppStore';
+import { api } from '../libs/api';
 
 // 1. กำหนด Schema ด้วย Zod ฝั่ง Frontend
 const loginFormSchema = z.object({
@@ -18,13 +19,11 @@ const loginFormSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
-
 export default function Login() {
   const navigate = useNavigate();
   const setCurrentUser = useAppStore((state) => state.setCurrentUser);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [demoUsers, setDemoUsers] = useState<any[]>([]);
+  const [demoUsers, setDemoUsers] = useState<UserProfile[]>([]);
 
   // 2. ผูก React Hook Form เข้ากับ Zod
   const {
@@ -42,10 +41,10 @@ export default function Login() {
 
   // ดึงรายชื่อบัญชีตัวอย่างมาแสดงเพื่อให้กดสลับเทสต์ 2 แท็บได้ง่าย
   useEffect(() => {
-    fetch(`${API_BASE}/auth/demo-users`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setDemoUsers(data);
+    api
+      .get('/auth/demo-users')
+      .then((res) => {
+        if (Array.isArray(res.data)) setDemoUsers(res.data);
       })
       .catch(() => {});
   }, []);
@@ -53,23 +52,16 @@ export default function Login() {
   const onSubmit = async (values: LoginFormValues) => {
     setServerError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setServerError(data.message || 'เข้าสู่ระบบไม่สำเร็จ');
-        return;
-      }
+      const res = await api.post('/auth/login', values);
 
       // บันทึก User ลง Zustand (เก็บแยกเฉพาะแท็บนี้ใน sessionStorage)
-      setCurrentUser(data.user);
+      setCurrentUser(res.data.user);
       navigate('/');
-    } catch (err) {
-      setServerError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setServerError(
+        err.response?.data?.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+      );
     }
   };
 
