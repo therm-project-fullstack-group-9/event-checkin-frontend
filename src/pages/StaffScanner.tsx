@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { api } from '../libs/api';
 
@@ -6,6 +6,8 @@ export default function StaffScanner() {
   const [ticketInput, setTicketInput] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [scanResult, setScanResult] = useState<{
     status: 'success' | 'error' | 'idle';
@@ -16,7 +18,14 @@ export default function StaffScanner() {
     timestamp?: string;
   }>({ status: 'idle', message: '' });
 
-// ฟังก์ชันช่วยแปลงเวลาจาก Database (ISO String) เป็นรูปแบบแสดงผลภาษาไทย
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const formatDbTime = (dbTime?: string) => {
     if (!dbTime) return undefined;
     return new Date(dbTime).toLocaleString('th-TH', {
@@ -25,15 +34,21 @@ export default function StaffScanner() {
     });
   };
 
-  // ฟังก์ชันตรวจสอบรหัสตั๋ว (ทำงานร่วมกันทั้งจากการสแกน QR และพิมพ์มือ)
   const handleVerifyTicket = async (codeToVerify: string) => {
     const cleanCode = codeToVerify.trim().toUpperCase();
     if (!cleanCode) return;
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
-      const response = await api.post('/staff/check-in', {
-        ticketRef: cleanCode,
-      });
+      const response = await api.post(
+        '/staff/check-in', 
+        { ticketRef: cleanCode },
+        { signal: abortControllerRef.current.signal }
+      );
 
       setScanResult({
         status: 'success',
@@ -44,7 +59,11 @@ export default function StaffScanner() {
         timestamp: formatDbTime(response.data.checkInTime),
       });
     } catch (error: any) {
-      // ดึงข้อมูลจาก response ของ Backend เวลาเกิด Error (400 หรือ 404)
+
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
+
       const errData = error.response?.data;
       const errMessage = errData?.message || 'เกิดข้อผิดพลาดในการตรวจสอบตั๋ว';
 
@@ -56,16 +75,18 @@ export default function StaffScanner() {
         eventTitle: errData?.eventTitle,
         timestamp: formatDbTime(errData?.checkInTime),
       });
+    } finally {
+      // รีเซ็ต Ref เมื่อเสร็จสิ้น (ถ้าไม่ได้ถูกยกเลิกไปก่อน)
+      if (!abortControllerRef.current?.signal.aborted) {
+        abortControllerRef.current = null;
+      }
     }
     setTicketInput('');
   };
-  
 
   return (
-    // เว้น pb-24 รองรับ Bottom Bar บนมือถือ
     <div className="max-w-md mx-auto p-4 pb-24 md:pb-8 min-h-screen bg-gray-50 flex flex-col justify-between">
       <div>
-        {/* ส่วนหัว */}
         <div className="text-center mb-5 pt-2">
           <span className="px-3 py-1 bg-teal-100 text-teal-800 text-xs font-bold rounded-full">
             STAFF MODE
@@ -74,7 +95,6 @@ export default function StaffScanner() {
           <p className="text-sm text-gray-600 mt-0.5">จุดสแกน: หอประชุมใหญ่</p>
         </div>
 
-        {/* ปุ่มควบคุมการเปิด-ปิดกล้อง */}
         <div className="flex justify-end mb-2">
           <button
             type="button"
@@ -92,7 +112,6 @@ export default function StaffScanner() {
           </button>
         </div>
 
-        {/* ช่องมองภาพกล้องจริง (Camera Viewfinder) */}
         <div className="bg-black rounded-2xl overflow-hidden shadow-md relative aspect-square flex flex-col items-center justify-center text-white mb-6 border-2 border-gray-800">
           {isCameraOpen ? (
             <Scanner
@@ -107,13 +126,13 @@ export default function StaffScanner() {
                 setCameraError('ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตสิทธิ์การใช้กล้องบนเบราว์เซอร์');
               }}
               constraints={{
-                facingMode: 'environment', // บังคับใช้กล้องหลังบนมือถือเป็นหลัก
+                facingMode: 'environment',
               }}
               formats={['qr_code']}
-              scanDelay={1500} // หน่วงเวลา 1.5 วินาทีต่อการสแกน 1 ครั้ง ไม่ให้ยิงซ้ำรัวๆ
+              scanDelay={1500} 
               components={{
-                torch: true,  // แสดงปุ่มเปิดไฟฉาย (ถ้ามือถือรองรับ)
-                finder: true, // แสดงกรอบเล็ง QR Code
+                torch: true,  
+                finder: true, 
               }}
             />
           ) : (
@@ -128,7 +147,6 @@ export default function StaffScanner() {
             </div>
           )}
 
-          {/* แจ้งเตือนกรณีไม่อนุญาตสิทธิ์กล้อง */}
           {cameraError && (
             <div className="absolute inset-0 bg-gray-900/95 p-6 flex flex-col items-center justify-center text-center">
               <span className="text-3xl mb-2">⚠️</span>
@@ -143,7 +161,6 @@ export default function StaffScanner() {
           )}
         </div>
 
-        {/* กล่องแสดงผลลัพธ์การสแกน (Feedback Result Box) */}
         {scanResult.status !== 'idle' && (
           <div className={`p-4 rounded-xl border mb-6 shadow-sm transition-all ${
             scanResult.status === 'success' 
@@ -156,14 +173,12 @@ export default function StaffScanner() {
                   {scanResult.status === 'success' ? '✅' : '❌'}
                 </span>
 
-                  
-
                 <div>
                   {scanResult.timestamp && (
-                              <span className="text-sm font-bold">
-                              เวลา: {scanResult.timestamp} น.
-                              </span>
-                            )}
+                    <span className="text-sm font-bold">
+                      เวลา: {scanResult.timestamp} น.
+                    </span>
+                  )}
                   <h3 className="font-bold text-sm">{scanResult.message}</h3>
                   {scanResult.attendee && (
                     <div className="text-xs mt-1.5 space-y-0.5 opacity-90">
@@ -184,7 +199,6 @@ export default function StaffScanner() {
           </div>
         )}
 
-        {/* ช่องกรอกรหัสสำรอง (Fallback Manual Input) */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <label className="block text-xs font-medium text-gray-700 mb-2">
             หรือกรอกรหัสตั๋ว (TicketRef) กรณีสแกนไม่ติด

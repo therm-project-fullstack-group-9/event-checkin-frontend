@@ -51,32 +51,48 @@ export default function OrganizerDashboard() {
   const { eventId } = useParams<{ eventId: string }>();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // เพิ่ม Error State
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CHECKED_IN' | 'CONFIRMED'>('ALL');
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/events/${eventId}/dashboard`);
+      setLoading(true);
+      setError(null);
+      const response = await api.get(`/events/${eventId}/dashboard`, { signal });
       setData(response.data);
-    } catch (error) {
-      console.error('Error fetching organizer dashboard:', error);
+    } catch (err: any) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        return;
+      }
+      console.error('Error fetching organizer dashboard:', err);
+      setError('ไม่สามารถโหลดข้อมูลจัดการกิจกรรมได้');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchDashboard();
+    const controller = new AbortController();
+    if (eventId) {
+      fetchDashboard(controller.signal);
+    }
+    return () => {
+      controller.abort();
+    };
   }, [eventId]);
 
   if (loading) {
     return <div className="p-12 text-center text-gray-500">กำลังโหลดข้อมูลจัดการกิจกรรม...</div>;
   }
 
-  if (!data) {
+  // ปรับการแสดงผล Error
+  if (error || !data) {
     return (
       <div className="p-12 text-center">
-        <p className="text-lg text-gray-700 mb-4">ไม่พบข้อมูลกิจกรรมนี้</p>
+        <p className="text-lg text-gray-700 mb-4">{error || 'ไม่พบข้อมูลกิจกรรมนี้'}</p>
         <Link to="/my-events" className="text-indigo-600 hover:underline">
           ← กลับไปหน้ากิจกรรมของฉัน
         </Link>

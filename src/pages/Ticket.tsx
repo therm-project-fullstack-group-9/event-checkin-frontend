@@ -32,29 +32,47 @@ export default function Ticket() {
   const { ticketRef } = useParams<{ ticketRef: string }>();
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // 👈 เพิ่ม Error State
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchTicket = async () => {
       try {
-        const response = await api.get(`/tickets/${ticketRef}`);
+        setLoading(true);
+        setError(null);
+        const response = await api.get(`/tickets/${ticketRef}`, { signal: controller.signal });
         setTicket(response.data);
-      } catch (error) {
-        console.error('Error fetching ticket:', error);
+      } catch (err: any) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+          return;
+        }
+        console.error('Error fetching ticket:', err);
+        setError('ไม่สามารถโหลดข้อมูลตั๋วได้ กรุณาลองใหม่อีกครั้ง');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
-    fetchTicket();
+
+    if (ticketRef) {
+      fetchTicket();
+    }
+
+    return () => {
+      controller.abort();
+    };
   }, [ticketRef]);
 
   if (loading) {
     return <div className="p-12 text-center text-gray-500">กำลังโหลดข้อมูลบัตรเข้างาน...</div>;
   }
 
-  if (!ticket) {
+  if (error || !ticket) {
     return (
       <div className="p-12 text-center">
-        <p className="text-lg text-gray-700 mb-4">ไม่พบข้อมูลตั๋วใบนี้ในระบบ</p>
+        <p className="text-lg text-gray-700 mb-4">{error || 'ไม่พบข้อมูลตั๋วใบนี้ในระบบ'}</p>
         <Link to="/my-events" className="text-indigo-600 hover:underline">
           ← กลับไปหน้าตั๋วของฉัน
         </Link>

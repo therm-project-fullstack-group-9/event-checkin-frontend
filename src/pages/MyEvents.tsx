@@ -3,11 +3,6 @@ import { Link } from 'react-router-dom';
 import { api } from '../libs/api';
 import { formatThaiDate } from '../libs/formatDate';
 
-const [items, setItems] = useState<MyEventItem[]>([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState<string | null>(null); // 👈 1. เพิ่ม State นี้
-const [activeTab, setActiveTab] = useState<'all' | 'attendee' | 'organizer'>('all');
-
 interface MyEventItem {
   id: string;
   eventId: string;
@@ -21,59 +16,40 @@ interface MyEventItem {
   bookingStatus?: 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED';
 }
 
-
-useEffect(() => {
-  // 👈 2. สร้าง AbortController เพื่อยกเลิก API หากผู้ใช้เปลี่ยนหน้าหนี
-  const controller = new AbortController();
-
-  const fetchMyEvents = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      // 👈 3. แนบ signal ไปกับ Axios
-      const response = await api.get('/my-bookings', { signal: controller.signal });
-      setItems(response.data);
-    } catch (err: any) {
-      // 👈 4. ถ้า error เกิดจากการกดยกเลิก (เปลี่ยนหน้า) ไม่ต้องทำอะไร
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
-        return; 
-      }
-      console.error('Error fetching my events:', err);
-      setError('ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่อีกครั้ง'); // 👈 5. เก็บข้อความแจ้งผู้ใช้
-    } finally {
-      // เช็คว่าไม่ได้ถูกยกเลิกถึงจะปิด Loading
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  };
-
-  fetchMyEvents();
-
-  // 👈 6. Cleanup Function: เมื่อ Component ถูกปิด จะยกเลิก API ทันที
-  return () => {
-    controller.abort();
-  };
-}, []);
-
-
 export default function MyEvents() {
+  // ✅ Hooks ทั้งหมดต้องอยู่ตรงนี้ (ด้านในฟังก์ชัน MyEvents)
   const [items, setItems] = useState<MyEventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'attendee' | 'organizer'>('all');
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchMyEvents = async () => {
       try {
-        const response = await api.get('/my-bookings');
+        setLoading(true);
+        setError(null);
+        const response = await api.get('/my-bookings', { signal: controller.signal });
         setItems(response.data);
-      } catch (error) {
-        console.error('Error fetching my events:', error);
+      } catch (err: any) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+          return; 
+        }
+        console.error('Error fetching my events:', err);
+        setError('ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
+
     fetchMyEvents();
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   // กรองรายการตามแถบ Tab ที่เลือก
@@ -87,7 +63,7 @@ export default function MyEvents() {
     return <div className="p-12 text-center text-gray-500">กำลังโหลดข้อมูลกิจกรรมของฉัน...</div>;
   }
 
-  // 👈 เพิ่มการแสดง Error UI
+  // แสดง Error UI
   if (error) {
     return (
       <div className="p-12 text-center text-red-500">
@@ -155,7 +131,7 @@ export default function MyEvents() {
         </button>
       </div>
 
-      {/* รายการการ์ดแบบใหม่ (Vertical Modern Card) */}
+      {/* รายการการ์ด */}
       {filteredItems.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-gray-200">
           <p className="text-gray-500 mb-4">ยังไม่มีรายการกิจกรรมในหมวดหมู่นี้</p>
@@ -174,15 +150,12 @@ export default function MyEvents() {
               className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col justify-between hover:shadow-md transition"
             >
               <div>
-                {/* ส่วนรูปภาพด้านบน + ป้ายกำกับลอยบนรูป */}
                 <div className="relative h-44">
                   <img
                     src={item.imageUrl}
                     alt={item.title}
                     className="w-full h-full object-cover"
                   />
-
-                  {/* ป้ายบอกบทบาท (มุมซ้ายบน) */}
                   <span
                     className={`absolute top-3 left-3 text-xs font-bold px-3 py-1 rounded-full shadow-sm ${
                       item.role === 'Attendee'
@@ -194,8 +167,6 @@ export default function MyEvents() {
                   >
                     {item.role}
                   </span>
-
-                  {/* ป้ายสถานะการเช็คอิน เฉพาะบัตร Attendee (มุมขวาบน) */}
                   {item.role === 'Attendee' && (
                     <span
                       className={`absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full shadow-sm ${
@@ -208,8 +179,6 @@ export default function MyEvents() {
                     </span>
                   )}
                 </div>
-
-                {/* ส่วนเนื้อหาในการ์ด */}
                 <div className="p-5">
                   {item.ticketRef && (
                     <div className="text-xs font-mono font-bold text-indigo-600 mb-1">
@@ -228,8 +197,6 @@ export default function MyEvents() {
                   </div>
                 </div>
               </div>
-
-              {/* ส่วนปุ่มกดด้านล่างการ์ด (เปลี่ยนตามบทบาท) */}
               <div className="p-5 pt-0 flex gap-3">
                 {item.role === 'Attendee' && item.ticketRef && (
                   <Link
@@ -239,7 +206,6 @@ export default function MyEvents() {
                     เปิดดู QR Code เข้างาน
                   </Link>
                 )}
-
                 {item.role === 'Organizer' && (
                   <Link
                     to={`/manage-event/${item.eventId}`}
@@ -248,7 +214,6 @@ export default function MyEvents() {
                     จัดการกิจกรรม →
                   </Link>
                 )}
-
                 {item.role === 'Staff' && (
                   <Link
                     to="/staff/scanner"
@@ -257,7 +222,6 @@ export default function MyEvents() {
                     📷 เปิดเครื่องสแกนตั๋ว
                   </Link>
                 )}
-
                 <Link
                   to={`/event/${item.eventId}`}
                   className="px-4 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-xl text-sm transition"

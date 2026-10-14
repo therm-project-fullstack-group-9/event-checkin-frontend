@@ -33,26 +33,41 @@ export default function EventDetails() {
   const { eventId } = useParams<{ eventId: string }>();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // เพิ่ม State สำหรับ Error ในการโหลด
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   const [healthNote, setHealthNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookedTicketRef, setBookedTicketRef] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // ฟังก์ชันดึงข้อมูลรายละเอียดกิจกรรมจาก Backend
-  const fetchEventDetails = async () => {
+  // ฟังก์ชันดึงข้อมูลรายละเอียดกิจกรรมจาก Backend (รองรับ AbortSignal)
+  const fetchEventDetails = async (signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/events/${eventId}`);
+      setLoading(true);
+      setError(null);
+      const response = await api.get(`/events/${eventId}`, { signal });
       setEvent(response.data);
-    } catch (error) {
-      console.error('Error fetching event details:', error);
+    } catch (err: any) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        return;
+      }
+      console.error('Error fetching event details:', err);
+      setError('ไม่สามารถโหลดข้อมูลกิจกรรมได้');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchEventDetails();
+    const controller = new AbortController();
+    if (eventId) {
+      fetchEventDetails(controller.signal);
+    }
+    return () => {
+      controller.abort();
+    };
   }, [eventId]);
 
   // ฟังก์ชันกดยืนยันการจองตั๋ว
@@ -89,10 +104,11 @@ export default function EventDetails() {
     return <div className="p-12 text-center text-gray-500">กำลังโหลดข้อมูลกิจกรรม...</div>;
   }
 
-  if (!event) {
+  // ปรับการแสดงผล Error เมื่อไม่พบข้อมูล
+  if (error || !event) {
     return (
       <div className="p-12 text-center">
-        <p className="text-lg text-gray-700 mb-4">ไม่พบข้อมูลกิจกรรมนี้</p>
+        <p className="text-lg text-gray-700 mb-4">{error || 'ไม่พบข้อมูลกิจกรรมนี้'}</p>
         <Link to="/" className="text-indigo-600 hover:underline">กลับหน้าหลัก</Link>
       </div>
     );
@@ -146,9 +162,7 @@ export default function EventDetails() {
                       setSelectedSessionId(session.sessionId);
                       setErrorMsg(null);
                       setBookedTicketRef(null);
-                    }
-                      
-                    }
+                    }}
                     className={`p-4 rounded-xl border text-left transition ${
                       isFull
                         ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
