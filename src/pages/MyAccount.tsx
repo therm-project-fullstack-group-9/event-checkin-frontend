@@ -1,37 +1,87 @@
 import { useState, useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../libs/api';
+import { useAppStore } from '../store/useAppStore';
+
+// 1. กำหนด Zod Schema (กฎการตรวจสอบข้อมูล)
+const profileSchema = z.object({
+  firstName: z.string().min(1, 'กรุณากรอกชื่อจริง'),
+  lastName: z.string().min(1, 'กรุณากรอกนามสกุล'),
+  nickname: z.string().optional().nullable(),
+  emailAddress: z.string().email('รูปแบบอีเมลไม่ถูกต้อง'),
+  phoneNumber: z
+    .string()
+    .min(9, 'เบอร์โทรศัพท์ต้องมีอย่างน้อย 9 ตัวอักษร')
+    .max(10, 'เบอร์โทรศัพท์ต้องไม่เกิน 10 ตัวอักษร'),
+  birthday: z.string().optional().nullable(),
+  occupation: z.string().optional().nullable(),
+  workplace: z.string().optional().nullable(),
+  profileImage: z.string().optional().nullable(),
+  backgroundImage: z.string().optional().nullable(),
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function MyAccount() {
+  const currentUser = useAppStore((state) => state.currentUser);
+  const setCurrentUser = useAppStore((state) => state.setCurrentUser);
+
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const profileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    userId: '',
-    firstName: '',
-    lastName: '',
-    nickname: '',
-    emailAddress: '',
-    phoneNumber: '',
-    birthday: '',
-    occupation: '',
-    workplace: '',
-    profileImage: '',
-    backgroundImage: '',
-    // newPassword: '',
-    createdAt: '',
+  // 2. เรียกใช้ React Hook Form
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      nickname: '',
+      emailAddress: '',
+      phoneNumber: '',
+      birthday: '',
+      occupation: '',
+      workplace: '',
+      profileImage: '',
+      backgroundImage: '',
+    },
   });
+
+  // ใช้ watch เพื่อดึงค่ามาแสดงผลแบบเรียลไทม์ (แทนที่ formData แบบเก่า)
+  const currentBgImage = watch('backgroundImage');
+  const currentProfileImage = watch('profileImage');
+  const currentFirstName = watch('firstName');
+  const currentLastName = watch('lastName');
+  const currentNickname = watch('nickname');
+  const currentEmail = watch('emailAddress');
 
   const fetchProfile = async () => {
     try {
+      // โหลดข้อมูลเริ่มต้นจาก Zustand ก่อนให้เว็บดูเร็ว
+      if (currentUser) {
+        reset({
+          ...currentUser,
+          birthday: currentUser.birthday ? String(currentUser.birthday).substring(0, 10) : '',
+        });
+      }
+
+      // ดึงข้อมูลล่าสุดจาก API
       const response = await api.get('/profile');
       const user = response.data;
-
-      setFormData({
-        userId: user.userId || user.id || '',
+      
+      setCurrentUser(user);
+      reset({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         nickname: user.nickname || '',
@@ -42,8 +92,6 @@ export default function MyAccount() {
         workplace: user.workplace || '',
         profileImage: user.profileImage || '',
         backgroundImage: user.backgroundImage || '',
-        // newPassword: '',
-        createdAt: user.createdAt || '',
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -54,9 +102,10 @@ export default function MyAccount() {
 
   useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ฟังก์ชันแปลงไฟล์รูปที่เลือกจากเครื่องเป็น Base64 เพื่อแสดงผลและบันทึกได้ทันที
+  // ฟังก์ชันแปลงไฟล์รูปที่เลือกจากเครื่องเป็น Base64
   const handleImageFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     field: 'profileImage' | 'backgroundImage'
@@ -66,43 +115,26 @@ export default function MyAccount() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: reader.result as string,
-      }));
+      // ใช้ setValue ของ react-hook-form แทน setFormData
+      setValue(field, reader.result as string, { shouldValidate: true, shouldDirty: true });
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
+  const onSubmit = async (values: ProfileFormValues) => {
     setStatusMsg(null);
 
     try {
-      await api.put('/profile', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        nickname: formData.nickname,
-        emailAddress: formData.emailAddress,
-        phoneNumber: formData.phoneNumber,
-        birthday: formData.birthday,
-        occupation: formData.occupation,
-        workplace: formData.workplace,
-        profileImage: formData.profileImage,
-        backgroundImage: formData.backgroundImage,
-        // password: formData.newPassword,
-      });
-
+      const res = await api.put('/profile', values);
+      
+      setCurrentUser(res.data.user);
       setStatusMsg({ type: 'success', text: '✅ บันทึกการเปลี่ยนแปลงข้อมูลบัญชีสำเร็จ!' });
-      fetchProfile();
+      reset(values); // รีเซ็ตสถานะ isDirty
     } catch (error: any) {
       setStatusMsg({
         type: 'error',
         text: error.response?.data?.message || '❌ ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -110,7 +142,7 @@ export default function MyAccount() {
     return <div className="p-12 text-center text-gray-500">กำลังโหลดข้อมูลบัญชีของคุณ...</div>;
   }
 
-  const avatarInitial = formData.firstName ? formData.firstName.charAt(0).toUpperCase() : 'U';
+  const avatarInitial = currentFirstName ? currentFirstName.charAt(0).toUpperCase() : 'U';
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 pb-24">
@@ -126,8 +158,8 @@ export default function MyAccount() {
         <div
           className="relative h-44 sm:h-52 bg-gradient-to-r from-indigo-600 to-purple-600 bg-cover bg-center"
           style={
-            formData.backgroundImage
-              ? { backgroundImage: `url(${formData.backgroundImage})` }
+            currentBgImage
+              ? { backgroundImage: `url(${currentBgImage})` }
               : undefined
           }
         >
@@ -155,10 +187,10 @@ export default function MyAccount() {
             <div className="flex items-center gap-4 sm:gap-5">
               {/* รูปโปรไฟล์ + ปุ่มกดเปลี่ยนรูป */}
               <div className="relative group shrink-0">
-                {formData.profileImage ? (
+                {currentProfileImage ? (
                   <img
-                    src={formData.profileImage}
-                    alt={formData.firstName}
+                    src={currentProfileImage}
+                    alt={currentFirstName}
                     className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-white shadow-md bg-white"
                   />
                 ) : (
@@ -187,21 +219,21 @@ export default function MyAccount() {
               {/* ชื่อ-นามสกุล และอีเมล */}
               <div className="text-white drop-shadow">
                 <h2 className="text-xl sm:text-2xl font-bold">
-                  {formData.firstName} {formData.lastName}
-                  {formData.nickname && (
+                  {currentFirstName} {currentLastName}
+                  {currentNickname && (
                     <span className="text-base font-normal text-indigo-100 ml-2">
-                      ({formData.nickname})
+                      ({currentNickname})
                     </span>
                   )}
                 </h2>
-                <p className="text-indigo-100 text-xs sm:text-sm">{formData.emailAddress}</p>
+                <p className="text-indigo-100 text-xs sm:text-sm">{currentEmail}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* ฟอร์มแก้ไขข้อมูล */}
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 sm:p-8 space-y-6" noValidate>
           {statusMsg && (
             <div
               className={`p-4 rounded-xl text-sm font-medium border ${
@@ -226,11 +258,10 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  {...register('firstName')}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
+                {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName.message}</p>}
               </div>
 
               <div>
@@ -239,11 +270,10 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  {...register('lastName')}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
+                {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName.message}</p>}
               </div>
 
               <div>
@@ -252,8 +282,7 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="text"
-                  value={formData.nickname}
-                  onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                  {...register('nickname')}
                   placeholder="เช่น ฟิวส์, เอิร์ธ"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
@@ -265,8 +294,7 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="date"
-                  value={formData.birthday}
-                  onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                  {...register('birthday')}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
@@ -277,8 +305,7 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="text"
-                  value={formData.occupation}
-                  onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                  {...register('occupation')}
                   placeholder="เช่น นักศึกษา, Software Developer"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
@@ -290,8 +317,7 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="text"
-                  value={formData.workplace}
-                  onChange={(e) => setFormData({ ...formData, workplace: e.target.value })}
+                  {...register('workplace')}
                   placeholder="เช่น มหาวิทยาลัยเชียงใหม่"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
@@ -311,11 +337,11 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="email"
-                  required
-                  value={formData.emailAddress}
-                  onChange={(e) => setFormData({ ...formData, emailAddress: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  disabled // ปิดไม่ให้แก้ได้เพื่อป้องกันปัญหาล็อกอิน
+                  {...register('emailAddress')}
+                  className="w-full px-4 py-2.5 border border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed rounded-xl text-sm focus:outline-none"
                 />
+                {errors.emailAddress && <p className="text-xs text-red-500 mt-1">{errors.emailAddress.message}</p>}
               </div>
 
               <div>
@@ -324,16 +350,15 @@ export default function MyAccount() {
                 </label>
                 <input
                   type="tel"
-                  required
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  {...register('phoneNumber')}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
+                {errors.phoneNumber && <p className="text-xs text-red-500 mt-1">{errors.phoneNumber.message}</p>}
               </div>
             </div>
           </div>
 
-          {/* ลิงก์รูปโปรไฟล์และรูปพื้นหลัง (เผื่อกรณีต้องการวางเป็น URL) */}
+          {/* ลิงก์รูปโปรไฟล์และรูปพื้นหลัง */}
           <div>
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
               ตั้งค่ารูปโปรไฟล์และพื้นหลัง (เลือกไฟล์จากปุ่มด้านบน หรือวางลิงก์ URL)
@@ -346,15 +371,14 @@ export default function MyAccount() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={formData.profileImage}
-                    onChange={(e) => setFormData({ ...formData, profileImage: e.target.value })}
+                    {...register('profileImage')}
                     placeholder="https://... หรือกดปุ่ม 📷 ด้านบน"
                     className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
-                  {formData.profileImage && (
+                  {currentProfileImage && (
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, profileImage: '' })}
+                      onClick={() => setValue('profileImage', '', { shouldDirty: true })}
                       className="px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-xl border border-gray-200 shrink-0"
                     >
                       ลบรูป
@@ -370,15 +394,14 @@ export default function MyAccount() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={formData.backgroundImage}
-                    onChange={(e) => setFormData({ ...formData, backgroundImage: e.target.value })}
+                    {...register('backgroundImage')}
                     placeholder="https://... หรือกดปุ่ม 🖼️ ด้านบน"
                     className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
-                  {formData.backgroundImage && (
+                  {currentBgImage && (
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, backgroundImage: '' })}
+                      onClick={() => setValue('backgroundImage', '', { shouldDirty: true })}
                       className="px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-xl border border-gray-200 shrink-0"
                     >
                       ลบรูป
@@ -389,47 +412,14 @@ export default function MyAccount() {
             </div>
           </div>
 
-          {/* 
-          ====================================================================
-          หมวดเปลี่ยนรหัสผ่าน
-          ====================================================================
-          <div>
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
-              เปลี่ยนรหัสผ่าน (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)
-            </h3>
-            <div className="max-w-md">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                รหัสผ่านใหม่ (New Password)
-              </label>
-              <input
-                type="password"
-                value={formData.newPassword}
-                onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                placeholder="กรอกรหัสผ่านใหม่เมื่อต้องการเปลี่ยนเท่านั้น"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-          </div>
-          */}
-
           {/* ปุ่มบันทึกข้อมูล */}
-          <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="text-xs text-gray-400">
-              {formData.createdAt && (
-                <span>
-                  สร้างบัญชีเมื่อ:{' '}
-                  {new Date(formData.createdAt).toLocaleDateString('th-TH', {
-                    dateStyle: 'long',
-                  })}
-                </span>
-              )}
-            </div>
+          <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-end gap-4">
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSubmitting}
               className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition shadow-sm"
             >
-              {isSaving ? 'กำลังบันทึกข้อมูล...' : 'บันทึกการเปลี่ยนแปลง'}
+              {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'บันทึกการเปลี่ยนแปลง'}
             </button>
           </div>
         </form>

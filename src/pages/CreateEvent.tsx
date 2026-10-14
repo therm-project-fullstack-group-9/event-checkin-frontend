@@ -1,70 +1,69 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useForm, useFieldArray, type SubmitHandler } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../libs/api';
 
-interface SessionInput {
-  startTime: string;
-  endTime: string;
-  capacity: number;
-}
+// 1. กำหนด Zod Schema (แก้เป็น z.number ธรรมดา)
+const sessionSchema = z.object({
+  startTime: z.string().min(1, 'กรุณาระบุเวลาเริ่ม'),
+  endTime: z.string().min(1, 'กรุณาระบุเวลาสิ้นสุด'),
+  capacity: z.number().min(1, 'ที่นั่งต้องมากกว่า 0'), 
+});
+
+const createEventSchema = z.object({
+  eventName: z.string().min(3, 'ชื่อกิจกรรมต้องมีอย่างน้อย 3 ตัวอักษร'),
+  category: z.string(),
+  eventDate: z.string().min(1, 'กรุณาระบุวันที่จัดงาน'),
+  venue: z.string().min(2, 'กรุณาระบุสถานที่จัดงาน'),
+  imageUrl: z.string().optional().or(z.literal('')),
+  shortDescription: z.string().min(1, 'กรุณากรอกคำโปรยสั้นๆ'),
+  description: z.string().min(10, 'รายละเอียดต้องมีอย่างน้อย 10 ตัวอักษร'),
+  sessions: z.array(sessionSchema).min(1, 'ต้องมีอย่างน้อย 1 รอบเวลา'),
+});
+
+type CreateEventFormValues = z.infer<typeof createEventSchema>;
 
 export default function CreateEvent() {
   const navigate = useNavigate();
-  const [eventName, setEventName] = useState('');
-  const [category, setCategory] = useState('Technology');
-  const [eventDate, setEventDate] = useState('');
-  const [venue, setVenue] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [shortDescription, setShortDescription] = useState('');
-  const [description, setDescription] = useState('');
-  const [sessions, setSessions] = useState<SessionInput[]>([
-    { startTime: '09:00', endTime: '12:00', capacity: 100 },
-  ]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // เพิ่มรอบเวลาใหม่
-  const handleAddSession = () => {
-    setSessions([...sessions, { startTime: '13:00', endTime: '16:00', capacity: 100 }]);
-  };
+  // 2. ตั้งค่า React Hook Form
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateEventFormValues>({
+    resolver: zodResolver(createEventSchema),
+    defaultValues: {
+      eventName: '',
+      category: 'Technology',
+      eventDate: '',
+      venue: '',
+      imageUrl: '',
+      shortDescription: '',
+      description: '',
+      sessions: [{ startTime: '09:00', endTime: '12:00', capacity: 100 }],
+    },
+  });
 
-  // ลบรอบเวลา
-  const handleRemoveSession = (index: number) => {
-    if (sessions.length <= 1) return;
-    setSessions(sessions.filter((_, i) => i !== index));
-  };
+  // 3. ใช้ useFieldArray สำหรับจัดการฟิลด์ที่เพิ่ม/ลดได้แบบไดนามิก
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'sessions',
+  });
 
-  // แก้ไขค่าในแต่ละรอบเวลา
-  const handleSessionChange = (index: number, field: keyof SessionInput, value: string | number) => {
-    const updated = [...sessions];
-    updated[index] = { ...updated[index], [field]: value };
-    setSessions(updated);
-  };
-
-  // ส่งข้อมูลไปบันทึกที่ Backend
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const onSubmit: SubmitHandler<CreateEventFormValues> = async (values) => {
     setErrorMsg(null);
-
     try {
-      await api.post('/events', {
-        eventName,
-        category,
-        eventDate,
-        venue,
-        imageUrl,
-        shortDescription,
-        description,
-        sessions,
-      });
-
-      // เมื่อสร้างสำเร็จ พาไปหน้า กิจกรรมของฉัน (/my-events)
+      await api.post('/events', values);
       navigate('/my-events');
     } catch (error: any) {
-      setErrorMsg(error.response?.data?.message || 'ไม่สามารถสร้างกิจกรรมได้ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setIsSubmitting(false);
+      setErrorMsg(
+        error.response?.data?.message || 'ไม่สามารถสร้างกิจกรรมได้ กรุณาลองใหม่อีกครั้ง'
+      );
     }
   };
 
@@ -84,25 +83,23 @@ export default function CreateEvent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อกิจกรรม *</label>
             <input
               type="text"
-              required
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
+              {...register('eventName')}
               placeholder="เช่น เวิร์กชอป React & TypeScript 2026"
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+            {errors.eventName && <p className="text-xs text-red-500 mt-1">{errors.eventName.message}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ *</label>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                {...register('category')}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
                 <option value="Technology">Technology</option>
@@ -111,18 +108,17 @@ export default function CreateEvent() {
                 <option value="Art & Culture">Art & Culture</option>
                 <option value="Music & Concert">Music & Concert</option>
               </select>
+              {errors.category && <p className="text-xs text-red-500 mt-1">{errors.category.message}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">วันที่จัดงาน *</label>
               <input
                 type="date"
-                required
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                placeholder="เช่น 20 พ.ย. 2026"
+                {...register('eventDate')}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
+              {errors.eventDate && <p className="text-xs text-red-500 mt-1">{errors.eventDate.message}</p>}
             </div>
           </div>
 
@@ -131,23 +127,22 @@ export default function CreateEvent() {
               <label className="block text-sm font-medium text-gray-700 mb-1">สถานที่จัดงาน (Venue) *</label>
               <input
                 type="text"
-                required
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
+                {...register('venue')}
                 placeholder="เช่น อาคารนวัตกรรม มหาวิทยาลัยเชียงใหม่"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
+              {errors.venue && <p className="text-xs text-red-500 mt-1">{errors.venue.message}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">ลิงก์รูปภาพหน้าปก (URL)</label>
               <input
                 type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
+                {...register('imageUrl')}
                 placeholder="https://images.unsplash.com/..."
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
+              {errors.imageUrl && <p className="text-xs text-red-500 mt-1">{errors.imageUrl.message}</p>}
             </div>
           </div>
 
@@ -155,24 +150,22 @@ export default function CreateEvent() {
             <label className="block text-sm font-medium text-gray-700 mb-1">คำโปรยสั้นๆ (Short Description) *</label>
             <input
               type="text"
-              required
-              value={shortDescription}
-              onChange={(e) => setShortDescription(e.target.value)}
+              {...register('shortDescription')}
               placeholder="สรุปความน่าสนใจของงานใน 1-2 ประโยค"
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+            {errors.shortDescription && <p className="text-xs text-red-500 mt-1">{errors.shortDescription.message}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียดกิจกรรมฉบับเต็ม *</label>
             <textarea
               rows={4}
-              required
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...register('description')}
               placeholder="อธิบายกำหนดการ เนื้อหา และสิ่งที่ผู้เข้าร่วมจะได้รับ..."
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+            {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>}
           </div>
 
           {/* ส่วนกำหนดรอบเวลา (Sessions) */}
@@ -183,7 +176,7 @@ export default function CreateEvent() {
               </label>
               <button
                 type="button"
-                onClick={handleAddSession}
+                onClick={() => append({ startTime: '13:00', endTime: '16:00', capacity: 100 })}
                 className="text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg transition"
               >
                 + เพิ่มรอบเวลา
@@ -191,31 +184,33 @@ export default function CreateEvent() {
             </div>
 
             <div className="space-y-3">
-              {sessions.map((session, index) => (
+              {fields.map((field, index) => (
                 <div
-                  key={index}
+                  key={field.id}
                   className="flex flex-wrap sm:flex-nowrap items-end gap-3 bg-gray-50 p-3.5 rounded-xl border border-gray-200"
                 >
                   <div className="flex-1 min-w-[110px]">
                     <label className="block text-xs text-gray-500 mb-1">เวลาเริ่ม</label>
                     <input
                       type="time"
-                      required
-                      value={session.startTime}
-                      onChange={(e) => handleSessionChange(index, 'startTime', e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+                      {...register(`sessions.${index}.startTime` as const)}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                    {errors.sessions?.[index]?.startTime && (
+                      <p className="text-xs text-red-500 mt-1">{errors.sessions[index].startTime?.message}</p>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-[110px]">
                     <label className="block text-xs text-gray-500 mb-1">เวลาสิ้นสุด</label>
                     <input
                       type="time"
-                      required
-                      value={session.endTime}
-                      onChange={(e) => handleSessionChange(index, 'endTime', e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+                      {...register(`sessions.${index}.endTime` as const)}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                    {errors.sessions?.[index]?.endTime && (
+                      <p className="text-xs text-red-500 mt-1">{errors.sessions[index].endTime?.message}</p>
+                    )}
                   </div>
 
                   <div className="w-28">
@@ -223,17 +218,19 @@ export default function CreateEvent() {
                     <input
                       type="number"
                       min={1}
-                      required
-                      value={session.capacity}
-                      onChange={(e) => handleSessionChange(index, 'capacity', Number(e.target.value))}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+                      // เพิ่ม { valueAsNumber: true } ตรงนี้เพื่อบังคับให้ส่งออกมาเป็น Number เสมอ
+                      {...register(`sessions.${index}.capacity` as const, { valueAsNumber: true })}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                    {errors.sessions?.[index]?.capacity && (
+                      <p className="text-xs text-red-500 mt-1">{errors.sessions[index].capacity?.message}</p>
+                    )}
                   </div>
 
-                  {sessions.length > 1 && (
+                  {fields.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveSession(index)}
+                      onClick={() => remove(index)}
                       className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition"
                     >
                       ลบ

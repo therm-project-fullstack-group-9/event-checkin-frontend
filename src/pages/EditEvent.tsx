@@ -1,33 +1,59 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { api } from '../libs/api';
+
+// 1. กำหนด Zod Schema สำหรับหน้าแก้ไขกิจกรรม
+const editEventSchema = z.object({
+  eventName: z.string().min(3, 'ชื่อกิจกรรมต้องมีอย่างน้อย 3 ตัวอักษร'),
+  category: z.string(),
+  eventDate: z.string().min(1, 'กรุณาระบุวันที่จัดงาน'),
+  venue: z.string().min(2, 'กรุณาระบุสถานที่จัดงาน'),
+  imageUrl: z.string().optional().or(z.literal('')),
+  shortDescription: z.string().min(1, 'กรุณากรอกคำโปรยสั้นๆ'),
+  description: z.string().min(10, 'รายละเอียดต้องมีอย่างน้อย 10 ตัวอักษร'),
+  eventsStatus: z.enum(['Upcoming', 'Ongoing', 'Completed', 'Cancelled']),
+});
+
+type EditEventFormValues = z.infer<typeof editEventSchema>;
 
 export default function EditEvent() {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    eventName: '',
-    category: 'Technology',
-    eventDate: '',
-    venue: '',
-    imageUrl: '',
-    shortDescription: '',
-    description: '',
-    eventsStatus: 'Upcoming',
+  // 2. ตั้งค่า React Hook Form
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting, isDirty },
+  } = useForm<EditEventFormValues>({
+    resolver: zodResolver(editEventSchema),
+    defaultValues: {
+      eventName: '',
+      category: 'Technology',
+      eventDate: '',
+      venue: '',
+      imageUrl: '',
+      shortDescription: '',
+      description: '',
+      eventsStatus: 'Upcoming',
+    },
   });
 
-  // ดึงข้อมูลเดิมของกิจกรรมมาใส่ในฟอร์ม
+  // 3. ดึงข้อมูลเดิมของกิจกรรมมาใส่ในฟอร์ม
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         const response = await api.get(`/events/${eventId}`);
         const ev = response.data;
-        setFormData({
+        // รีเซ็ตค่าในฟอร์มด้วยข้อมูลที่ดึงมา
+        reset({
           eventName: ev.eventName || '',
           category: ev.category || 'Technology',
           eventDate: ev.eventDate || '',
@@ -44,23 +70,20 @@ export default function EditEvent() {
         setLoading(false);
       }
     };
-    fetchEvent();
-  }, [eventId]);
+    if (eventId) {
+      fetchEvent();
+    }
+  }, [eventId, reset]);
 
-  // บันทึกการแก้ไขลงฐานข้อมูล
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  // 4. บันทึกการแก้ไขลงฐานข้อมูล
+  const onSubmit = async (values: EditEventFormValues) => {
     setErrorMsg(null);
-
     try {
-      await api.put(`/events/${eventId}`, formData);
+      await api.put(`/events/${eventId}`, values);
       // บันทึกเสร็จแล้วพากลับไปหน้าจัดการกิจกรรม (OrganizerDashboard)
       navigate(`/manage-event/${eventId}`);
     } catch (error: any) {
       setErrorMsg(error.response?.data?.message || 'ไม่สามารถบันทึกการแก้ไขได้ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -92,24 +115,22 @@ export default function EditEvent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อกิจกรรม *</label>
             <input
               type="text"
-              required
-              value={formData.eventName}
-              onChange={(e) => setFormData({ ...formData, eventName: e.target.value })}
+              {...register('eventName')}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+            {errors.eventName && <p className="text-xs text-red-500 mt-1">{errors.eventName.message}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ *</label>
               <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                {...register('category')}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
                 <option value="Technology">Technology</option>
@@ -118,24 +139,23 @@ export default function EditEvent() {
                 <option value="Art & Culture">Art & Culture</option>
                 <option value="Music & Concert">Music & Concert</option>
               </select>
+              {errors.category && <p className="text-xs text-red-500 mt-1">{errors.category.message}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">วันที่จัดงาน *</label>
               <input
                 type="date"
-                required
-                value={formData.eventDate}
-                onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
+                {...register('eventDate')}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
+              {errors.eventDate && <p className="text-xs text-red-500 mt-1">{errors.eventDate.message}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">สถานะกิจกรรม</label>
               <select
-                value={formData.eventsStatus}
-                onChange={(e) => setFormData({ ...formData, eventsStatus: e.target.value })}
+                {...register('eventsStatus')}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
                 <option value="Upcoming">Upcoming (กำลังจะมาถึง)</option>
@@ -143,6 +163,7 @@ export default function EditEvent() {
                 <option value="Completed">Completed (จบงานแล้ว)</option>
                 <option value="Cancelled">Cancelled (ยกเลิก)</option>
               </select>
+              {errors.eventsStatus && <p className="text-xs text-red-500 mt-1">{errors.eventsStatus.message}</p>}
             </div>
           </div>
 
@@ -151,21 +172,20 @@ export default function EditEvent() {
               <label className="block text-sm font-medium text-gray-700 mb-1">สถานที่จัดงาน (Venue) *</label>
               <input
                 type="text"
-                required
-                value={formData.venue}
-                onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
+                {...register('venue')}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
+              {errors.venue && <p className="text-xs text-red-500 mt-1">{errors.venue.message}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">ลิงก์รูปภาพหน้าปก (URL)</label>
               <input
                 type="url"
-                value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                {...register('imageUrl')}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
+              {errors.imageUrl && <p className="text-xs text-red-500 mt-1">{errors.imageUrl.message}</p>}
             </div>
           </div>
 
@@ -173,22 +193,20 @@ export default function EditEvent() {
             <label className="block text-sm font-medium text-gray-700 mb-1">คำโปรยสั้นๆ (Short Description) *</label>
             <input
               type="text"
-              required
-              value={formData.shortDescription}
-              onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
+              {...register('shortDescription')}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+            {errors.shortDescription && <p className="text-xs text-red-500 mt-1">{errors.shortDescription.message}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียดกิจกรรมฉบับเต็ม *</label>
             <textarea
               rows={5}
-              required
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              {...register('description')}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+            {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>}
           </div>
 
           <div className="pt-4 flex gap-3">
@@ -200,7 +218,7 @@ export default function EditEvent() {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={!isDirty || isSubmitting}
               className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-semibold py-3 rounded-xl transition shadow-sm text-sm"
             >
               {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'บันทึกการแก้ไขกิจกรรม'}
