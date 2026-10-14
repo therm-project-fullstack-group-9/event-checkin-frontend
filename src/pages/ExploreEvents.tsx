@@ -18,21 +18,40 @@ export interface EventItem {
 export default function ExploreEvents() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // 👈 เพิ่ม Error State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
+    // 👈 สร้าง AbortController ป้องกัน API ค้างเวลาเปลี่ยนแท็บ
+    const controller = new AbortController();
+
     const fetchEvents = async () => {
       try {
-        const response = await api.get('/events');
+        setLoading(true);
+        setError(null);
+        // 👈 แนบ signal ไปกับ Axios
+        const response = await api.get('/events', { signal: controller.signal });
         setEvents(response.data);
-      } catch (error) {
-        console.error('Error fetching events:', error);
+      } catch (err: any) {
+        // 👈 ดักการ Error จากการกดยกเลิก
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+          return;
+        }
+        console.error('Error fetching events:', err);
+        setError('ไม่สามารถดึงข้อมูลกิจกรรมได้ กรุณาลองใหม่อีกครั้ง');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
     fetchEvents();
+
+    // 👈 Cleanup Function ยกเลิก API เมื่อปิดหน้า
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const filteredEvents = events.filter((event) => {
@@ -45,6 +64,21 @@ export default function ExploreEvents() {
 
   if (loading) {
     return <div className="p-12 text-center text-gray-500">กำลังโหลดข้อมูลกิจกรรมจากฐานข้อมูล...</div>;
+  }
+
+  // 👈 เพิ่มหน้าจอแสดง Error ให้ผู้ใช้รู้
+  if (error) {
+    return (
+      <div className="p-12 text-center text-red-500">
+        <p>❌ {error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition"
+        >
+          ลองโหลดใหม่อีกครั้ง
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -77,30 +111,36 @@ export default function ExploreEvents() {
       </div>
 
       {/* แสดงการ์ดกิจกรรมจากฐานข้อมูล */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredEvents.map((event) => (
-          <div key={event.eventId} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition flex flex-col">
-            <img src={event.imageUrl} alt={event.eventName} className="w-full h-48 object-cover" />
-            <div className="p-5 flex-1 flex flex-col">
-              <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full w-fit mb-2">
-                {event.category}
-              </span>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">{event.eventName}</h3>
-              <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">{event.shortDescription}</p>
-              <div className="text-xs text-gray-500 space-y-1 mb-4">
-                <div>📅 {formatThaiDate(event.eventDate)}</div>
-                <div>📍 {event.venue}</div>
+      {filteredEvents.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 text-center border border-gray-200">
+          <p className="text-gray-500">ไม่พบกิจกรรมที่ค้นหา</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEvents.map((event) => (
+            <div key={event.eventId} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition flex flex-col">
+              <img src={event.imageUrl} alt={event.eventName} className="w-full h-48 object-cover" />
+              <div className="p-5 flex-1 flex flex-col">
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full w-fit mb-2">
+                  {event.category}
+                </span>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{event.eventName}</h3>
+                <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">{event.shortDescription}</p>
+                <div className="text-xs text-gray-500 space-y-1 mb-4">
+                  <div>📅 {formatThaiDate(event.eventDate)}</div>
+                  <div>📍 {event.venue}</div>
+                </div>
+                <Link
+                  to={`/event/${event.eventId}`}
+                  className="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition"
+                >
+                  ดูรายละเอียด / จองตั๋ว
+                </Link>
               </div>
-              <Link
-                to={`/event/${event.eventId}`}
-                className="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition"
-              >
-                ดูรายละเอียด / จองตั๋ว
-              </Link>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

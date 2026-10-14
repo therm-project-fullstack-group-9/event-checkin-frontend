@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import { api } from '../libs/api';
 import { formatThaiDate } from '../libs/formatDate';
 
+const [items, setItems] = useState<MyEventItem[]>([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null); // 👈 1. เพิ่ม State นี้
+const [activeTab, setActiveTab] = useState<'all' | 'attendee' | 'organizer'>('all');
+
 interface MyEventItem {
   id: string;
   eventId: string;
@@ -15,6 +20,42 @@ interface MyEventItem {
   ticketRef?: string;
   bookingStatus?: 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED';
 }
+
+
+useEffect(() => {
+  // 👈 2. สร้าง AbortController เพื่อยกเลิก API หากผู้ใช้เปลี่ยนหน้าหนี
+  const controller = new AbortController();
+
+  const fetchMyEvents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // 👈 3. แนบ signal ไปกับ Axios
+      const response = await api.get('/my-bookings', { signal: controller.signal });
+      setItems(response.data);
+    } catch (err: any) {
+      // 👈 4. ถ้า error เกิดจากการกดยกเลิก (เปลี่ยนหน้า) ไม่ต้องทำอะไร
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        return; 
+      }
+      console.error('Error fetching my events:', err);
+      setError('ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่อีกครั้ง'); // 👈 5. เก็บข้อความแจ้งผู้ใช้
+    } finally {
+      // เช็คว่าไม่ได้ถูกยกเลิกถึงจะปิด Loading
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
+    }
+  };
+
+  fetchMyEvents();
+
+  // 👈 6. Cleanup Function: เมื่อ Component ถูกปิด จะยกเลิก API ทันที
+  return () => {
+    controller.abort();
+  };
+}, []);
+
 
 export default function MyEvents() {
   const [items, setItems] = useState<MyEventItem[]>([]);
@@ -44,6 +85,21 @@ export default function MyEvents() {
 
   if (loading) {
     return <div className="p-12 text-center text-gray-500">กำลังโหลดข้อมูลกิจกรรมของฉัน...</div>;
+  }
+
+  // 👈 เพิ่มการแสดง Error UI
+  if (error) {
+    return (
+      <div className="p-12 text-center text-red-500">
+        <p>❌ {error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition"
+        >
+          ลองโหลดใหม่อีกครั้ง
+        </button>
+      </div>
+    );
   }
 
   return (
