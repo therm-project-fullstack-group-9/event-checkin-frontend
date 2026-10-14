@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { EVENT_CATEGORIES, DEFAULT_CATEGORY } from '../constants/eventCategories';
+import { editEventSchema } from '../schemas/eventSchema';
 
 export default function EditEvent() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -12,7 +14,7 @@ export default function EditEvent() {
 
   const [formData, setFormData] = useState({
     eventName: '',
-    category: 'Technology',
+    category: DEFAULT_CATEGORY as string,
     eventDate: '',
     venue: '',
     imageUrl: '',
@@ -29,7 +31,7 @@ export default function EditEvent() {
         const ev = response.data;
         setFormData({
           eventName: ev.eventName || '',
-          category: ev.category || 'Technology',
+          category: ev.category || DEFAULT_CATEGORY,
           eventDate: ev.eventDate || '',
           venue: ev.venue || '',
           imageUrl: ev.imageUrl || '',
@@ -53,8 +55,15 @@ export default function EditEvent() {
     setIsSubmitting(true);
     setErrorMsg(null);
 
+    const parsed = editEventSchema.safeParse(formData);
+    if (!parsed.success) {
+      setErrorMsg(parsed.error.issues[0].message);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      await api.put(`/events/${eventId}`, formData);
+      await api.put(`/events/${eventId}`, parsed.data);
       // บันทึกเสร็จแล้วพากลับไปหน้าจัดการกิจกรรม (OrganizerDashboard)
       navigate(`/manage-event/${eventId}`);
     } catch (error: any) {
@@ -112,11 +121,9 @@ export default function EditEvent() {
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
-                <option value="Technology">Technology</option>
-                <option value="Workshop">Workshop</option>
-                <option value="Business">Business</option>
-                <option value="Art & Culture">Art & Culture</option>
-                <option value="Music & Concert">Music & Concert</option>
+                {EVENT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
               </select>
             </div>
 

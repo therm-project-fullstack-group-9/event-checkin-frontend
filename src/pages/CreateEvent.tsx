@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { EVENT_CATEGORIES, DEFAULT_CATEGORY } from '../constants/eventCategories';
+import { createEventSchema } from '../schemas/eventSchema';
+import type { SessionInput } from '../types';
 
-interface SessionInput {
-  startTime: string;
-  endTime: string;
-  capacity: number;
-}
 
 export default function CreateEvent() {
   const navigate = useNavigate();
   const [eventName, setEventName] = useState('');
-  const [category, setCategory] = useState('Technology');
+  const [category, setCategory] = useState<string>(DEFAULT_CATEGORY);
   const [eventDate, setEventDate] = useState('');
   const [venue, setVenue] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -47,17 +45,25 @@ export default function CreateEvent() {
     setIsSubmitting(true);
     setErrorMsg(null);
 
+    // ตรวจข้อมูลด้วย zod ก่อนส่ง (กฎเดียวกับ backend) แสดง error ข้อแรกที่พบ
+    const parsed = createEventSchema.safeParse({
+      eventName,
+      category,
+      eventDate,
+      venue,
+      imageUrl,
+      shortDescription,
+      description,
+      sessions,
+    });
+    if (!parsed.success) {
+      setErrorMsg(parsed.error.issues[0].message);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      await api.post('/events', {
-        eventName,
-        category,
-        eventDate,
-        venue,
-        imageUrl,
-        shortDescription,
-        description,
-        sessions,
-      });
+      await api.post('/events', parsed.data);
 
       // เมื่อสร้างสำเร็จ พาไปหน้า กิจกรรมของฉัน (/my-events)
       navigate('/my-events');
@@ -105,11 +111,9 @@ export default function CreateEvent() {
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               >
-                <option value="Technology">Technology</option>
-                <option value="Workshop">Workshop</option>
-                <option value="Business">Business</option>
-                <option value="Art & Culture">Art & Culture</option>
-                <option value="Music & Concert">Music & Concert</option>
+                {EVENT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
               </select>
             </div>
 

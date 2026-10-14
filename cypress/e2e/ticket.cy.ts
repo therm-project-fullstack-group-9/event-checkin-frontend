@@ -23,6 +23,8 @@ describe('Ticket page', () => {
 
   it('ไม่พบตั๋ว', () => {
     cy.intercept('GET', '**/api/tickets/*', { statusCode: 404, body: {} })
+    // หน้า /my-events (ปลายทางของลิงก์) เรียก API จริง ถ้าไม่ stub จะได้ 401 จาก backend แล้วถูกพาไป /login
+    cy.intercept('GET', '**/api/my-bookings', { body: [] })
     cy.visit('/ticket/NOPE')
     cy.contains('ไม่พบข้อมูลตั๋วใบนี้ในระบบ').should('be.visible')
     cy.contains('a', 'กลับไปหน้าตั๋วของฉัน').click()

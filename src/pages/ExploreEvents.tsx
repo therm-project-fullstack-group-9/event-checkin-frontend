@@ -2,21 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatThaiDate } from '../lib/formatDate';
+import { EVENT_CATEGORIES } from '../constants/eventCategories';
+import type { EventSummary } from '../types';
 
-export interface EventItem {
-  eventId: string;
-  eventName: string;
-  shortDescription: string;
-  eventDate: string;
-  venue: string;
-  category: string;
-  imageUrl: string;
-  eventsStatus: string;
-  maxCapacity: number;
-}
 
 export default function ExploreEvents() {
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [events, setEvents] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -69,10 +60,9 @@ export default function ExploreEvents() {
           className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
         >
           <option value="All">ทุกหมวดหมู่</option>
-          <option value="Technology">Technology</option>
-          <option value="Workshop">Workshop</option>
-          <option value="Business">Business</option>
-          <option value="Art & Culture">Art & Culture</option>
+          {EVENT_CATEGORIES.map((category) => (
+            <option key={category} value={category}>{category}</option>
+          ))}
         </select>
       </div>
 

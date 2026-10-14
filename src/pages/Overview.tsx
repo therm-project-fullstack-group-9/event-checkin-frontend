@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatThaiDate } from '../lib/formatDate';
+import type { MyEventItem, EventSummary, UserProfile } from '../types';
+
 
 export default function Overview() {
-  const [user, setUser] = useState<{ firstName: string; lastName: string } | null>(null);
-  const [myItems, setMyItems] = useState<any[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [user, setUser] = useState<Pick<UserProfile, 'firstName' | 'lastName' | 'bookingBlocked' | 'noShowCount'> | null>(null);
+  const [myItems, setMyItems] = useState<MyEventItem[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -68,6 +70,13 @@ export default function Overview() {
           </Link>
         </div>
       </div>
+
+      {/* แจ้งเตือนเมื่อถูกระงับสิทธิ์จองเพราะไม่มาตามรอบ */}
+      {user?.bookingBlocked && (
+        <div role="alert" className="mb-6 p-4 rounded-2xl border border-red-200 bg-red-50 text-sm text-red-800">
+          ⛔ บัญชีของคุณถูกระงับสิทธิ์การจองตั๋ว เนื่องจากไม่ได้เข้าร่วมตามรอบที่จองไว้ {user.noShowCount} ครั้ง
+        </div>
+      )}
 
       {/* การ์ดสรุปสถิติส่วนตัว */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">

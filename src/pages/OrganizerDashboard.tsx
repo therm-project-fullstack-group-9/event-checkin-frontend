@@ -3,56 +3,18 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import ExportButtons from '../components/ExportButtons';
 import { formatThaiDate } from '../lib/formatDate';
+import StatCard from '../components/dashboard/StatCard';
+import SessionSeatCard from '../components/dashboard/SessionSeatCard';
+import AttendeeTable from '../components/dashboard/AttendeeTable';
+import type { DashboardData, BookingStatus } from '../types';
 
-interface SessionItem {
-  sessionId: string;
-  startTime: string;
-  endTime: string;
-  capacity: number;
-  booked: number;
-}
-
-interface AttendeeBooking {
-  bookingId: string;
-  ticketRef: string;
-  bookingStatus: 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED';
-  checkInTime?: string | null;
-  healthDeclaration?: string;
-  user: {
-    firstName: string;
-    lastName: string;
-    emailAddress: string;
-    phoneNumber: string;
-  };
-  session: {
-    startTime: string;
-    endTime: string;
-  };
-}
-
-interface DashboardData {
-  event: {
-    eventId: string;
-    eventName: string;
-    shortDescription: string;
-    description: string;
-    eventDate: string;
-    venue: string;
-    category: string;
-    imageUrl: string;
-    eventsStatus: string;
-    maxCapacity: number;
-    sessions: SessionItem[];
-  };
-  bookings: AttendeeBooking[];
-}
 
 export default function OrganizerDashboard() {
   const { eventId } = useParams<{ eventId: string }>();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'CHECKED_IN' | 'CONFIRMED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | Exclude<BookingStatus, 'CANCELLED'>>('ALL');
 
   const fetchDashboard = async () => {
     try {
@@ -87,6 +49,7 @@ export default function OrganizerDashboard() {
   const { event, bookings } = data;
   const totalBooked = bookings.length;
   const totalCheckedIn = bookings.filter((b) => b.bookingStatus === 'CHECKED_IN').length;
+  const totalNoShow = bookings.filter((b) => b.bookingStatus === 'NO_SHOW').length;
   const totalCapacity = event.sessions.reduce((sum, s) => sum + s.capacity, 0);
 
   // กรองรายชื่อผู้เข้าร่วมตามคำค้นหาและสถานะ
@@ -144,46 +107,28 @@ export default function OrganizerDashboard() {
 
       {/* การ์ดสรุปสถิติ */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-          <p className="text-xs font-medium text-gray-500">ผู้ลงทะเบียนทั้งหมด (ใบจองจริง)</p>
-          <p className="text-3xl font-bold text-indigo-600 mt-1">
-            {totalBooked} <span className="text-sm font-normal text-gray-400">/ {totalCapacity} ที่นั่ง</span>
-          </p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-          <p className="text-xs font-medium text-gray-500">สแกนเช็คอินเข้างานแล้ว</p>
-          <p className="text-3xl font-bold text-emerald-600 mt-1">
-            {totalCheckedIn} <span className="text-sm font-normal text-gray-400">คน</span>
-          </p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-          <p className="text-xs font-medium text-gray-500">รอเช็คอิน</p>
-          <p className="text-3xl font-bold text-amber-500 mt-1">
-            {totalBooked - totalCheckedIn} <span className="text-sm font-normal text-gray-400">คน</span>
-          </p>
-        </div>
+        <StatCard
+          label="ผู้ลงทะเบียนทั้งหมด (ใบจองจริง)"
+          value={totalBooked}
+          suffix={`/ ${totalCapacity} ที่นั่ง`}
+          valueClassName="text-indigo-600"
+        />
+        <StatCard label="สแกนเช็คอินเข้างานแล้ว" value={totalCheckedIn} suffix="คน" valueClassName="text-emerald-600" />
+        <StatCard
+          label="รอเช็คอิน"
+          value={totalBooked - totalCheckedIn - totalNoShow}
+          suffix="คน"
+          valueClassName="text-amber-500"
+        />
       </div>
 
       {/* สรุปยอดแต่ละรอบเวลา (Sessions) */}
       <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm mb-6">
         <h2 className="text-base font-bold text-gray-900 mb-4">สถานะที่นั่งแต่ละรอบเวลา (Sessions)</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {event.sessions.map((s) => {
-            const percent = Math.min(100, Math.round((s.booked / s.capacity) * 100));
-            return (
-              <div key={s.sessionId} className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                <div className="flex justify-between text-sm font-bold text-gray-800 mb-2">
-                  <span>🕒 {s.startTime} - {s.endTime} น.</span>
-                  <span className="text-indigo-600">{s.booked}/{s.capacity}</span>
-                </div>
-                <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${percent}%` }} />
-                </div>
-              </div>
-            );
-          })}
+          {event.sessions.map((session) => (
+            <SessionSeatCard key={session.sessionId} session={session} />
+          ))}
         </div>
       </div>
 
@@ -210,12 +155,13 @@ export default function OrganizerDashboard() {
 
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
               className="px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
               <option value="ALL">ทุกสถานะ</option>
               <option value="CHECKED_IN">เช็คอินแล้ว</option>
               <option value="CONFIRMED">ยังไม่เช็คอิน</option>
+              <option value="NO_SHOW">ไม่มาตามรอบ</option>
             </select>
 
             {/* เรียกใช้ Component ปุ่ม Export Excel & PDF */}
@@ -229,60 +175,7 @@ export default function OrganizerDashboard() {
           </div>
         </div>
 
-        {filteredBookings.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 text-sm">ไม่พบรายชื่อผู้ลงทะเบียน</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-gray-500 text-xs uppercase">
-                  <th className="py-3 px-4">รหัสตั๋ว</th>
-                  <th className="py-3 px-4">ชื่อ-นามสกุล</th>
-                  <th className="py-3 px-4">รอบเวลา</th>
-                  <th className="py-3 px-4">หมายเหตุสุขภาพ</th>
-                  <th className="py-3 px-4">สถานะ</th>
-                  <th className="py-3 px-4">เวลาเช็คอิน</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredBookings.map((b) => (
-                  <tr key={b.bookingId} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-600">{b.ticketRef}</td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-gray-900">
-                        {b.user.firstName} {b.user.lastName}
-                      </div>
-                      <div className="text-xs text-gray-500">{b.user.emailAddress}</div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-700">
-                      {b.session.startTime} - {b.session.endTime} น.
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">{b.healthDeclaration || '-'}</td>
-                    <td className="py-3 px-4">
-                      {b.bookingStatus === 'CHECKED_IN' ? (
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                          ✅ เช็คอินแล้ว
-                        </span>
-                      ) : (
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
-                          ⏳ รอเช็คอิน
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">
-                      {b.checkInTime
-                        ? new Date(b.checkInTime).toLocaleString('th-TH', {
-                            dateStyle: 'short',
-                            timeStyle: 'medium',
-                          })
-                        : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <AttendeeTable bookings={filteredBookings} />
       </div>
 
     </div>

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
+import { profileSchema } from '../schemas/profileSchema';
+import type { UserProfile } from '../types';
 
 export default function MyAccount() {
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export default function MyAccount() {
   const fetchProfile = async () => {
     try {
       const response = await api.get('/profile');
-      const user = response.data;
+      const user: UserProfile & { id?: string } = response.data;
 
       setFormData({
         userId: user.userId || user.id || '',
@@ -79,19 +81,18 @@ export default function MyAccount() {
     setIsSaving(true);
     setStatusMsg(null);
 
+    const parsed = profileSchema.safeParse(formData);
+    if (!parsed.success) {
+      setStatusMsg({ type: 'error', text: parsed.error.issues[0].message });
+      setIsSaving(false);
+      return;
+    }
+
     try {
       await api.put('/profile', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        nickname: formData.nickname,
-        emailAddress: formData.emailAddress,
-        phoneNumber: formData.phoneNumber,
-        birthday: formData.birthday,
-        occupation: formData.occupation,
-        workplace: formData.workplace,
-        profileImage: formData.profileImage,
-        backgroundImage: formData.backgroundImage,
-        // password: formData.newPassword,
+        ...parsed.data,
+        // เบอร์ว่าง (เช่น ผู้ใช้ที่เข้าด้วย OAuth) ส่งเป็น null ตามที่ backend รับ
+        phoneNumber: parsed.data.phoneNumber || null,
       });
 
       setStatusMsg({ type: 'success', text: '✅ บันทึกการเปลี่ยนแปลงข้อมูลบัญชีสำเร็จ!' });

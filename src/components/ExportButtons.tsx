@@ -1,22 +1,5 @@
 import { formatThaiDate } from '../lib/formatDate';
-
-interface AttendeeBooking {
-  bookingId: string;
-  ticketRef: string;
-  bookingStatus: 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED';
-  checkInTime?: string | null;
-  healthDeclaration?: string;
-  user: {
-    firstName: string;
-    lastName: string;
-    emailAddress: string;
-    phoneNumber: string;
-  };
-  session: {
-    startTime: string;
-    endTime: string;
-  };
-}
+import type { AttendeeBooking } from '../types';
 
 interface ExportButtonsProps {
   event: {
@@ -59,7 +42,7 @@ export default function ExportButtons({
       `"${b.user.phoneNumber || '-'}"`,
       `"${b.session.startTime} - ${b.session.endTime} น."`,
       `"${(b.healthDeclaration || '-').replace(/"/g, '""')}"`,
-      b.bookingStatus === 'CHECKED_IN' ? 'เช็คอินแล้ว' : 'รอเช็คอิน',
+      b.bookingStatus === 'CHECKED_IN' ? 'เช็คอินแล้ว' : b.bookingStatus === 'NO_SHOW' ? 'ไม่มาตามรอบ' : 'รอเช็คอิน',
       b.checkInTime
         ? `"${new Date(b.checkInTime).toLocaleString('th-TH', {
             dateStyle: 'short',
@@ -99,7 +82,7 @@ export default function ExportButtons({
           <td>${b.user.firstName} ${b.user.lastName}<br/><small style="color: #666;">${b.user.emailAddress}</small></td>
           <td>${b.session.startTime} - ${b.session.endTime} น.</td>
           <td>${b.healthDeclaration || '-'}</td>
-          <td>${b.bookingStatus === 'CHECKED_IN' ? '✅ เช็คอินแล้ว' : '⏳ รอเช็คอิน'}</td>
+          <td>${b.bookingStatus === 'CHECKED_IN' ? '✅ เช็คอินแล้ว' : b.bookingStatus === 'NO_SHOW' ? '⛔ ไม่มาตามรอบ' : '⏳ รอเช็คอิน'}</td>
           <td>${
             b.checkInTime
               ? new Date(b.checkInTime).toLocaleString('th-TH', {

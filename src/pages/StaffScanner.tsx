@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { api } from '../lib/api';
+import ScanResultBox from '../components/scanner/ScanResultBox';
+import type { ScanResult } from '../types';
 
 export default function StaffScanner() {
   const [ticketInput, setTicketInput] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const [scanResult, setScanResult] = useState<{
-    status: 'success' | 'error' | 'idle';
-    message: string;
-    ticketRef?: string;
-    attendee?: string;
-    eventTitle?: string;
-    timestamp?: string;
-  }>({ status: 'idle', message: '' });
+  const [scanResult, setScanResult] = useState<ScanResult>({ status: 'idle', message: '' });
 
 // ฟังก์ชันช่วยแปลงเวลาจาก Database (ISO String) เป็นรูปแบบแสดงผลภาษาไทย
   const formatDbTime = (dbTime?: string) => {
@@ -144,45 +139,7 @@ export default function StaffScanner() {
         </div>
 
         {/* กล่องแสดงผลลัพธ์การสแกน (Feedback Result Box) */}
-        {scanResult.status !== 'idle' && (
-          <div className={`p-4 rounded-xl border mb-6 shadow-sm transition-all ${
-            scanResult.status === 'success' 
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
-              : 'bg-red-50 border-red-200 text-red-900'
-          }`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="text-xl mt-0.5">
-                  {scanResult.status === 'success' ? '✅' : '❌'}
-                </span>
-
-                  
-
-                <div>
-                  {scanResult.timestamp && (
-                              <span className="text-sm font-bold">
-                              เวลา: {scanResult.timestamp} น.
-                              </span>
-                            )}
-                  <h3 className="font-bold text-sm">{scanResult.message}</h3>
-                  {scanResult.attendee && (
-                    <div className="text-xs mt-1.5 space-y-0.5 opacity-90">
-                      <p>รหัสตั๋ว: <span className="font-mono font-bold">{scanResult.ticketRef}</span></p>
-                      <p>ผู้เข้าร่วม: <span className="font-semibold">{scanResult.attendee}</span></p>
-                      <p>งาน: {scanResult.eventTitle}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <button 
-                onClick={() => setScanResult({ status: 'idle', message: '' })}
-                className="text-xs opacity-60 hover:opacity-100 font-medium"
-              >
-                ปิด
-              </button>
-            </div>
-          </div>
-        )}
+        <ScanResultBox result={scanResult} onClose={() => setScanResult({ status: 'idle', message: '' })} />
 
         {/* ช่องกรอกรหัสสำรอง (Fallback Manual Input) */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">

@@ -5,6 +5,15 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // ตอนพัฒนา: ส่งต่อ /api ไป backend (ให้ OAuth redirect มา http://localhost:5173/api/auth/callback ได้)
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:4000',
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

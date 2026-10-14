@@ -1,33 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../lib/api';
+import SessionPicker from '../components/events/SessionPicker';
+import BookedTicketBox from '../components/events/BookedTicketBox';
+import type { EventDetail } from '../types';
 
-interface SessionItem {
-  sessionId: string;
-  startTime: string;
-  endTime: string;
-  capacity: number;
-  booked: number;
-}
-
-interface EventDetail {
-  eventId: string;
-  eventName: string;
-  shortDescription: string;
-  description: string;
-  eventDate: string;
-  venue: string;
-  category: string;
-  imageUrl: string;
-  eventsStatus: string;
-  maxCapacity: number;
-  sessions: SessionItem[];
-  organizer?: {
-    firstName: string;
-    lastName: string;
-  };
-}
 
 export default function EventDetails() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -129,49 +106,15 @@ export default function EventDetails() {
           {/* ส่วนเลือกรอบเวลา (Sessions) */}
           <div className="mt-8">
             <h2 className="text-lg font-bold text-gray-900 mb-3">เลือกรอบเวลาเข้าร่วม (Sessions)</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {event.sessions
-              ?.slice()
-              .sort((a, b) => a.startTime.localeCompare(b.startTime))
-              .map((session) => {
-                const isFull = session.booked >= session.capacity;
-                const isSelected = selectedSessionId === session.sessionId;
-
-                return (
-                  <button
-                    key={session.sessionId}
-                    type="button"
-                    disabled={isFull}
-                    onClick={() => {
-                      setSelectedSessionId(session.sessionId);
-                      setErrorMsg(null);
-                      setBookedTicketRef(null);
-                    }
-                      
-                    }
-                    className={`p-4 rounded-xl border text-left transition ${
-                      isFull
-                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                        : isSelected
-                        ? 'bg-indigo-50 border-indigo-600 ring-2 ring-indigo-600 text-indigo-900'
-                        : 'bg-white border-gray-200 hover:border-indigo-400 text-gray-800'
-                    }`}
-                  >
-                    <div className="font-bold text-base">
-                      🕒 {session.startTime} - {session.endTime} น.
-                    </div>
-                    <div className="text-xs mt-2 flex justify-between items-center">
-                      <span>ที่นั่ง: {session.booked}/{session.capacity}</span>
-                      {isFull ? (
-                        <span className="text-red-500 font-semibold">เต็มแล้ว</span>
-                      ) : (
-                        <span className="text-emerald-600 font-semibold">ว่าง {session.capacity - session.booked} ที่</span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <SessionPicker
+              sessions={event.sessions ?? []}
+              selectedSessionId={selectedSessionId}
+              onSelect={(sessionId) => {
+                setSelectedSessionId(sessionId);
+                setErrorMsg(null);
+                setBookedTicketRef(null);
+              }}
+            />
           </div>
 
           {/* ช่องกรอกข้อมูลสุขภาพเพิ่มเติม */}
@@ -207,23 +150,7 @@ export default function EventDetails() {
           </div>
 
           {/* กล่องแสดงตั๋วและ QR Code ทันทีที่จองสำเร็จ */}
-          {bookedTicketRef && (
-            <div className="mt-8 p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
-              <h3 className="text-xl font-bold text-emerald-900 mb-1">🎉 จองตั๋วสำเร็จ!</h3>
-              <p className="text-sm text-emerald-700 mb-4">
-                สามารถแคปหน้าจอ QR Code หรือนำรหัสตั๋วนี้ไปสแกนที่หน้า Staff Scanner ได้เลยครับ
-              </p>
-              <div className="bg-white p-4 rounded-xl inline-block shadow-sm border border-gray-100">
-                <QRCodeSVG value={bookedTicketRef} size={180} />
-              </div>
-              <div className="mt-3">
-                <span className="text-xs text-gray-500 block">รหัสอ้างอิงตั๋ว (Ticket Ref)</span>
-                <span className="text-lg font-mono font-bold text-indigo-700 bg-white px-3 py-1 rounded border border-indigo-200 inline-block mt-1">
-                  {bookedTicketRef}
-                </span>
-              </div>
-            </div>
-          )}
+          {bookedTicketRef && <BookedTicketBox ticketRef={bookedTicketRef} />}
         </div>
       </div>
     </div>

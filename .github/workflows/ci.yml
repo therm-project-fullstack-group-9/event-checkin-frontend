@@ -45,7 +45,7 @@ jobs:
           wait-on-timeout: 120
           browser: chrome
         env:
-          VITE_API_BASE_URL: http://localhost:5000/api
+          VITE_API_BASE_URL: /api
 
       - name: Upload screenshots on failure
         if: failure()

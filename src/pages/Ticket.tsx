@@ -3,30 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../lib/api';
 import { formatThaiDate } from '../lib/formatDate';
+import TicketStatusBadge from '../components/tickets/TicketStatusBadge';
+import type { TicketDetail } from '../types';
 
-interface TicketDetail {
-  bookingId: string;
-  ticketRef: string;
-  bookingStatus: 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED';
-  checkInTime?: string | null;
-  healthDeclaration?: string;
-  user: {
-    firstName: string;
-    lastName: string;
-    emailAddress: string;
-  };
-  event: {
-    eventId: string;
-    eventName: string;
-    eventDate: string;
-    venue: string;
-    category: string;
-  };
-  session: {
-    startTime: string;
-    endTime: string;
-  };
-}
 
 export default function Ticket() {
   const { ticketRef } = useParams<{ ticketRef: string }>();
@@ -99,22 +78,7 @@ export default function Ticket() {
           </div>
 
           {/* ป้ายสถานะตั๋ว */}
-          <div className="mt-3">
-            {ticket.bookingStatus === 'CHECKED_IN' ? (
-              <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-4 py-1.5 rounded-full text-xs font-semibold text-center">
-                ✅ เช็คอินเข้างานแล้ว
-                {formattedCheckInTime && (
-                  <span className="block text-[11px] font-normal mt-0.5">
-                    เมื่อเวลา: {formattedCheckInTime} น.
-                  </span>
-                )}
-              </div>
-            ) : (
-              <span className="bg-amber-50 text-amber-800 border border-amber-200 px-4 py-1.5 rounded-full text-xs font-semibold">
-                ⏳ ยังไม่ได้เช็คอิน (แสดง QR นี้ต่อเจ้าหน้าที่)
-              </span>
-            )}
-          </div>
+          <TicketStatusBadge status={ticket.bookingStatus} checkInTime={formattedCheckInTime} />
         </div>
 
         {/* รายละเอียดผู้ถือบัตรและรอบเวลา */}
