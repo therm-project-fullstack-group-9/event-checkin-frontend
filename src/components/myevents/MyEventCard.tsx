@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../lib/formatDate';
+import EventStatusBadge from '../events/EventStatusBadge';
 import type { MyEventItem } from '../../types';
 
 // การ์ดกิจกรรมหนึ่งใบในหน้า "กิจกรรมของฉัน" (ปุ่มด้านล่างเปลี่ยนตามบทบาท)
@@ -17,18 +18,21 @@ export default function MyEventCard({ item }: { item: MyEventItem }) {
             className="w-full h-full object-cover"
           />
 
-          {/* ป้ายบอกบทบาท (มุมซ้ายบน) */}
-          <span
-            className={`absolute top-3 left-3 text-xs font-bold px-3 py-1 rounded-full shadow-sm ${
-              item.role === 'Attendee'
-                ? 'bg-sky-500 text-white'
-                : item.role === 'Organizer'
-                ? 'bg-purple-600 text-white'
-                : 'bg-teal-600 text-white'
-            }`}
-          >
-            {item.role}
-          </span>
+          {/* ป้ายบอกบทบาท + สถานะกิจกรรม (มุมซ้ายบน) */}
+          <div className="absolute top-3 left-3 flex flex-wrap gap-2">
+            <span
+              className={`text-xs font-bold px-3 py-1 rounded-full shadow-sm ${
+                item.role === 'Attendee'
+                  ? 'bg-sky-500 text-white'
+                  : item.role === 'Organizer'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-teal-600 text-white'
+              }`}
+            >
+              {item.role}
+            </span>
+            <EventStatusBadge status={item.eventsStatus} variant="solid" />
+          </div>
 
           {/* ป้ายสถานะการเช็คอิน เฉพาะบัตร Attendee (มุมขวาบน) */}
           {item.role === 'Attendee' && (

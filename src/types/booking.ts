@@ -55,6 +55,7 @@ export interface MyEventItem {
   sessionTime?: string;
   imageUrl: string;
   role: MyEventRole;
+  eventsStatus?: string;
   ticketRef?: string;
   bookingStatus?: BookingStatus;
 }
