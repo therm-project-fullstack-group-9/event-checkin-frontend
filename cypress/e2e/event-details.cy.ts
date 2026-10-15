@@ -78,3 +78,16 @@ describe('Event details & booking', () => {
     cy.contains('a', 'กลับหน้าหลัก').should('have.attr', 'href', '/')
   })
 })
+describe('Event details (Cancelled)', () => {
+  it('งานที่ถูกยกเลิก → แสดงประกาศ และไม่มีฟอร์ม/ปุ่มจอง', () => {
+    cy.fixture('event-detail.json').then((ev) => {
+      cy.intercept('GET', '**/api/events/evt-1', { ...ev, eventsStatus: 'Cancelled' }).as('detail')
+    })
+    cy.visit('/event/evt-1')
+    cy.wait('@detail')
+    cy.contains('กิจกรรมนี้ถูกยกเลิกแล้ว').should('be.visible')
+    cy.contains('h1', 'งานสัมมนา Tech 2026').should('be.visible')
+    cy.contains('button', 'ยืนยันการจองตั๋วเข้างาน').should('not.exist')
+    cy.contains('เลือกรอบเวลาเข้าร่วม').should('not.exist')
+  })
+})

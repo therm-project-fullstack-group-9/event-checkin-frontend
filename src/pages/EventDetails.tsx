@@ -75,6 +75,9 @@ export default function EventDetails() {
     );
   }
 
+  // งานที่ผู้จัดยกเลิกแล้ว: แสดงประกาศและปิดการจอง (backend ก็ปฏิเสธการจองด้วย)
+  const isCancelled = event.eventsStatus === 'Cancelled';
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 pb-24">
       <Link to="/explore-events" className="text-sm text-indigo-600 hover:underline mb-4 inline-block">
@@ -82,6 +85,11 @@ export default function EventDetails() {
       </Link>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        {isCancelled && (
+          <div role="alert" className="bg-red-600 text-white text-center font-semibold px-4 py-3">
+            กิจกรรมนี้ถูกยกเลิกแล้ว
+          </div>
+        )}
         <img src={event.imageUrl} alt={event.eventName} className="w-full h-64 sm:h-80 object-cover" />
 
         <div className="p-6 sm:p-8">
@@ -103,51 +111,55 @@ export default function EventDetails() {
             <p className="text-gray-700 leading-relaxed">{event.description}</p>
           </div>
 
-          {/* ส่วนเลือกรอบเวลา (Sessions) */}
-          <div className="mt-8">
-            <h2 className="text-lg font-bold text-gray-900 mb-3">เลือกรอบเวลาเข้าร่วม (Sessions)</h2>
-            <SessionPicker
-              sessions={event.sessions ?? []}
-              selectedSessionId={selectedSessionId}
-              onSelect={(sessionId) => {
-                setSelectedSessionId(sessionId);
-                setErrorMsg(null);
-                setBookedTicketRef(null);
-              }}
-            />
-          </div>
+          {!isCancelled && (
+            <>
+              {/* ส่วนเลือกรอบเวลา (Sessions) */}
+              <div className="mt-8">
+                <h2 className="text-lg font-bold text-gray-900 mb-3">เลือกรอบเวลาเข้าร่วม (Sessions)</h2>
+                <SessionPicker
+                  sessions={event.sessions ?? []}
+                  selectedSessionId={selectedSessionId}
+                  onSelect={(sessionId) => {
+                    setSelectedSessionId(sessionId);
+                    setErrorMsg(null);
+                    setBookedTicketRef(null);
+                  }}
+                />
+              </div>
 
-          {/* ช่องกรอกข้อมูลสุขภาพเพิ่มเติม */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ข้อมูลสุขภาพ / หมายเหตุเพิ่มเติม (ถ้ามี)
-            </label>
-            <input
-              type="text"
-              value={healthNote}
-              onChange={(e) => setHealthNote(e.target.value)}
-              placeholder="เช่น แพ้อาหารทะเล, ไม่มีอาการป่วย"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            />
-          </div>
+              {/* ช่องกรอกข้อมูลสุขภาพเพิ่มเติม */}
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ข้อมูลสุขภาพ / หมายเหตุเพิ่มเติม (ถ้ามี)
+                </label>
+                <input
+                  type="text"
+                  value={healthNote}
+                  onChange={(e) => setHealthNote(e.target.value)}
+                  placeholder="เช่น แพ้อาหารทะเล, ไม่มีอาการป่วย"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
 
-          {errorMsg && (
-            <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
-              ❌ {errorMsg}
-            </div>
+              {errorMsg && (
+                <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
+                  ❌ {errorMsg}
+                </div>
+              )}
+
+              {/* ปุ่มยืนยันการจอง */}
+              <div className="mt-6">
+                <button
+                  type="button"
+                  disabled={!selectedSessionId || isSubmitting}
+                  onClick={handleBookTicket}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-semibold py-3 rounded-xl transition"
+                >
+                  {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการจองตั๋วเข้างาน'}
+                </button>
+              </div>
+            </>
           )}
-
-          {/* ปุ่มยืนยันการจอง */}
-          <div className="mt-6">
-            <button
-              type="button"
-              disabled={!selectedSessionId || isSubmitting}
-              onClick={handleBookTicket}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-semibold py-3 rounded-xl transition"
-            >
-              {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการจองตั๋วเข้างาน'}
-            </button>
-          </div>
 
           {/* กล่องแสดงตั๋วและ QR Code ทันทีที่จองสำเร็จ */}
           {bookedTicketRef && <BookedTicketBox ticketRef={bookedTicketRef} />}

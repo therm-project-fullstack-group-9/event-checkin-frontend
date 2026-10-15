@@ -90,6 +90,40 @@ describe('Organizer dashboard', () => {
   })
 })
 
+describe('Organizer dashboard (delete event)', () => {
+  beforeEach(() => {
+    cy.intercept('GET', '**/api/events/evt-1/dashboard', { fixture: 'dashboard.json' }).as('dash')
+    cy.intercept('GET', '**/api/my-bookings', { fixture: 'my-bookings.json' })
+    cy.visit('/manage-event/evt-1')
+    cy.wait('@dash')
+  })
+
+  it('กดลบ → ขึ้นกล่องยืนยัน และกดยกเลิกแล้วไม่เรียก API', () => {
+    cy.intercept('DELETE', '**/api/events/evt-1', cy.spy().as('del'))
+    cy.contains('button', 'ลบกิจกรรม').click()
+    cy.get('[role=alertdialog]').should('contain', 'งานสัมมนา Tech 2026').and('contain', 'กู้คืนไม่ได้')
+    cy.contains('button', /^ยกเลิก$/).click()
+    cy.get('[role=alertdialog]').should('not.exist')
+    cy.get('@del').should('not.have.been.called')
+  })
+
+  it('ยืนยันลบ → เรียก DELETE แล้วกลับหน้ากิจกรรมของฉัน', () => {
+    cy.intercept('DELETE', '**/api/events/evt-1', { body: { message: 'ลบกิจกรรมสำเร็จ' } }).as('del')
+    cy.contains('button', 'ลบกิจกรรม').click()
+    cy.contains('button', 'ยืนยันลบกิจกรรม').click()
+    cy.wait('@del')
+    cy.location('pathname').should('eq', '/my-events')
+  })
+
+  it('ลบไม่สำเร็จ → แสดงข้อความผิดพลาดและยังอยู่หน้าเดิม', () => {
+    cy.intercept('DELETE', '**/api/events/evt-1', { statusCode: 404, body: { message: 'คุณไม่ใช่ผู้จัดงาน' } })
+    cy.contains('button', 'ลบกิจกรรม').click()
+    cy.contains('button', 'ยืนยันลบกิจกรรม').click()
+    cy.get('[role=alertdialog]').should('contain', 'คุณไม่ใช่ผู้จัดงาน')
+    cy.location('pathname').should('eq', '/manage-event/evt-1')
+  })
+})
+
 describe('Organizer dashboard (error)', () => {
   it('ไม่พบกิจกรรม → แสดงข้อความและลิงก์กลับ', () => {
     cy.intercept('GET', '**/api/events/nope/dashboard', { statusCode: 404, body: {} })

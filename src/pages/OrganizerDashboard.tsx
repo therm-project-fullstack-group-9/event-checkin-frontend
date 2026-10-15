@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import ExportButtons from '../components/ExportButtons';
 import { formatThaiDate } from '../lib/formatDate';
@@ -15,6 +15,23 @@ export default function OrganizerDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | Exclude<BookingStatus, 'CANCELLED'>>('ALL');
+  const navigate = useNavigate();
+  // ขั้นตอนลบกิจกรรม: กดปุ่มลบ -> ขึ้นกล่องยืนยัน -> ยืนยันจึงเรียก API
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteEvent = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.delete(`/events/${eventId}`);
+      navigate('/my-events', { replace: true });
+    } catch (error: any) {
+      setDeleteError(error.response?.data?.message || 'ไม่สามารถลบกิจกรรมได้ กรุณาลองใหม่อีกครั้ง');
+      setDeleting(false);
+    }
+  };
 
   const fetchDashboard = async () => {
     try {
@@ -75,6 +92,11 @@ export default function OrganizerDashboard() {
           <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
             ORGANIZER DASHBOARD
           </span>
+          {event.eventsStatus === 'Cancelled' && (
+            <span className="ml-2 text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+              ยกเลิกแล้ว
+            </span>
+          )}
           <h1 className="text-2xl font-bold text-gray-900 mt-2">{event.eventName}</h1>
           <div className="text-sm text-gray-500 mt-1 flex flex-wrap gap-4">
             <span>📅 {formatThaiDate(event.eventDate)}</span>
@@ -102,8 +124,45 @@ export default function OrganizerDashboard() {
           >
             ดูหน้างาน
           </Link>
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+          >
+            🗑️ ลบกิจกรรม
+          </button>
         </div>
       </div>
+
+      {/* กล่องยืนยันการลบ: ลบแล้วกู้คืนไม่ได้ และใบจอง/ประวัติเช็กอินของงานนี้จะหายทั้งหมด */}
+      {confirmingDelete && (
+        <div role="alertdialog" aria-label="ยืนยันการลบกิจกรรม" className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6">
+          <p className="font-bold text-red-800">ลบกิจกรรม “{event.eventName}” ใช่หรือไม่?</p>
+          <p className="text-sm text-red-700 mt-1">
+            ใบจอง {totalBooked} รายการ รอบเวลา และประวัติการเช็กอินของงานนี้จะถูกลบทั้งหมดและกู้คืนไม่ได้
+            {event.eventsStatus !== 'Cancelled' && ' หากแค่ต้องการหยุดรับจอง ให้เปลี่ยนสถานะเป็น Cancelled ในหน้าแก้ไขกิจกรรมแทน'}
+          </p>
+          {deleteError && <p className="text-sm text-red-800 font-medium mt-2">❌ {deleteError}</p>}
+          <div className="flex gap-2.5 mt-4">
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={handleDeleteEvent}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold px-4 py-2 rounded-xl transition"
+            >
+              {deleting ? 'กำลังลบ...' : 'ยืนยันลบกิจกรรม'}
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => { setConfirmingDelete(false); setDeleteError(null); }}
+              className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-xl transition"
+            >
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* การ์ดสรุปสถิติ */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
