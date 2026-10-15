@@ -41,3 +41,21 @@ describe('Explore events', () => {
     cy.location('pathname').should('eq', '/event/evt-1')
   })
 })
+describe('Explore events (status badge)', () => {
+  it('แสดงสถานะต่อจากป้ายหมวดหมู่ในการ์ด', () => {
+    cy.fixture('events.json').then((evs) => {
+      cy.intercept('GET', '**/api/events', [
+        { ...evs[0], eventsStatus: 'Upcoming' },
+        { ...evs[1], eventsStatus: 'Ongoing' },
+      ]).as('events')
+    })
+    cy.visit('/explore-events')
+    cy.wait('@events')
+    cy.contains('h3', 'งานสัมมนา Tech 2026').parent().within(() => {
+      cy.contains('span', 'Technology').next('[data-testid=event-status]').should('have.text', 'Upcoming')
+    })
+    cy.contains('h3', 'Workshop ศิลปะ').parent().within(() => {
+      cy.contains('span', 'Art & Culture').next('[data-testid=event-status]').should('have.text', 'Ongoing')
+    })
+  })
+})

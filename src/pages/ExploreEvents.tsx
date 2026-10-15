@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatThaiDate } from '../lib/formatDate';
 import { EVENT_CATEGORIES } from '../constants/eventCategories';
+import EventStatusBadge from '../components/events/EventStatusBadge';
 import type { EventSummary } from '../types';
 
 
@@ -72,9 +73,12 @@ export default function ExploreEvents() {
           <div key={event.eventId} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition flex flex-col">
             <img src={event.imageUrl} alt={event.eventName} className="w-full h-48 object-cover" />
             <div className="p-5 flex-1 flex flex-col">
-              <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full w-fit mb-2">
-                {event.category}
-              </span>
+              <div className="flex flex-wrap gap-2 mb-2">
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full w-fit">
+                  {event.category}
+                </span>
+                <EventStatusBadge status={event.eventsStatus} />
+              </div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">{event.eventName}</h3>
               <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">{event.shortDescription}</p>
               <div className="text-xs text-gray-500 space-y-1 mb-4">

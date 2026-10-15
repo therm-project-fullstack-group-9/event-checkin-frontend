@@ -78,16 +78,34 @@ describe('Event details & booking', () => {
     cy.contains('a', 'กลับหน้าหลัก').should('have.attr', 'href', '/')
   })
 })
-describe('Event details (Cancelled)', () => {
-  it('งานที่ถูกยกเลิก → แสดงประกาศ และไม่มีฟอร์ม/ปุ่มจอง', () => {
+describe('Event details (Cancelled / Completed)', () => {
+  const visitWithStatus = (status: string) => {
     cy.fixture('event-detail.json').then((ev) => {
-      cy.intercept('GET', '**/api/events/evt-1', { ...ev, eventsStatus: 'Cancelled' }).as('detail')
+      cy.intercept('GET', '**/api/events/evt-1', { ...ev, eventsStatus: status }).as('detail')
     })
     cy.visit('/event/evt-1')
     cy.wait('@detail')
+  }
+
+  it('งานที่ถูกยกเลิก → แสดงประกาศ ป้ายสถานะ และไม่มีฟอร์ม/ปุ่มจอง', () => {
+    visitWithStatus('Cancelled')
     cy.contains('กิจกรรมนี้ถูกยกเลิกแล้ว').should('be.visible')
+    cy.get('[data-testid=event-status]').should('have.text', 'Cancelled')
     cy.contains('h1', 'งานสัมมนา Tech 2026').should('be.visible')
     cy.contains('button', 'ยืนยันการจองตั๋วเข้างาน').should('not.exist')
     cy.contains('เลือกรอบเวลาเข้าร่วม').should('not.exist')
+  })
+
+  it('งานที่จบแล้ว → แสดงประกาศ ป้ายสถานะ และไม่มีฟอร์ม/ปุ่มจอง', () => {
+    visitWithStatus('Completed')
+    cy.contains('กิจกรรมนี้จบแล้ว').should('be.visible')
+    cy.get('[data-testid=event-status]').should('have.text', 'Completed')
+    cy.contains('button', 'ยืนยันการจองตั๋วเข้างาน').should('not.exist')
+  })
+
+  it('งานที่ยังเปิดอยู่ (Ongoing) → แสดงป้ายสถานะข้างหมวดหมู่ และจองได้', () => {
+    visitWithStatus('Ongoing')
+    cy.contains('span', 'Technology').next('[data-testid=event-status]').should('have.text', 'Ongoing')
+    cy.contains('button', 'ยืนยันการจองตั๋วเข้างาน').should('exist')
   })
 })

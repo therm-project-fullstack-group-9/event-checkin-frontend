@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import SessionPicker from '../components/events/SessionPicker';
 import BookedTicketBox from '../components/events/BookedTicketBox';
+import EventStatusBadge from '../components/events/EventStatusBadge';
 import type { EventDetail } from '../types';
 
 
@@ -75,8 +76,11 @@ export default function EventDetails() {
     );
   }
 
-  // งานที่ผู้จัดยกเลิกแล้ว: แสดงประกาศและปิดการจอง (backend ก็ปฏิเสธการจองด้วย)
-  const isCancelled = event.eventsStatus === 'Cancelled';
+  // งานที่ผู้จัดยกเลิกหรือจบแล้ว: แสดงประกาศและปิดการจอง (backend ก็ปฏิเสธการจองด้วย)
+  const closedNotice =
+    event.eventsStatus === 'Cancelled' ? 'กิจกรรมนี้ถูกยกเลิกแล้ว'
+    : event.eventsStatus === 'Completed' ? 'กิจกรรมนี้จบแล้ว'
+    : null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 pb-24">
@@ -85,17 +89,20 @@ export default function EventDetails() {
       </Link>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        {isCancelled && (
-          <div role="alert" className="bg-red-600 text-white text-center font-semibold px-4 py-3">
-            กิจกรรมนี้ถูกยกเลิกแล้ว
+        {closedNotice && (
+          <div role="alert" className={`${event.eventsStatus === 'Cancelled' ? 'bg-red-600' : 'bg-gray-600'} text-white text-center font-semibold px-4 py-3`}>
+            {closedNotice}
           </div>
         )}
         <img src={event.imageUrl} alt={event.eventName} className="w-full h-64 sm:h-80 object-cover" />
 
         <div className="p-6 sm:p-8">
-          <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-            {event.category}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+              {event.category}
+            </span>
+            <EventStatusBadge status={event.eventsStatus} />
+          </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-3">{event.eventName}</h1>
 
           <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-4 pb-6 border-b border-gray-100">
@@ -111,7 +118,7 @@ export default function EventDetails() {
             <p className="text-gray-700 leading-relaxed">{event.description}</p>
           </div>
 
-          {!isCancelled && (
+          {!closedNotice && (
             <>
               {/* ส่วนเลือกรอบเวลา (Sessions) */}
               <div className="mt-8">
